@@ -1,0 +1,40 @@
+# P45 layouts (32-bit, measured from the blob: the C1 constructors, every method and `member_map.py blob --class V90Modem|V92Modem --subobjects`; see porting/decompiled/dp/p45_modem.txt)
+# regenerate: tools/layout_gen.py layouts/vpcm/pcm_modem.layout --chunk p45 --out-port src/vpcm/pcm_modem_layout.inc --port-header vpcm/pcm_modem.h --inc-banner chunk
+# V90Modem: the owner of one V.90 modem side (a plain class: no vptr, no base class), 0x49c0 bytes on i386; VPcmFloModem embeds it at +0x1758.  It points to ONE of a V90Modulator (side 0, "Digital": mod_) or a
+# V90Demodulator (side 1, "Analog": dem_), the other pointer is NULL; both are heap objects it builds and destroys.  Heap-owned by the modem: V90Parameters (0x558), V90Phase2Info (0x24), V90Jd (0x90),
+# V92Jd (0xdc).  EMBEDDED (constructed or not by the modem): two V90MappingParams (0x650 each, +0x18 / +0x668: NOT constructed, the owner fills them), a tagV90AdditionalCPinfo (+0xcb8, 0x18), a V90MP (+0xcd0,
+# P09: its ctor / dtor are called by the modem) and a V90CP (+0xdf4, P10: it holds six heap pointers, so it is 8-aligned and padded on x86-64: flattened here as head / heap_ / tail with `align8`).
+# All the pointers are `ptr-into-heap` (normalised, never dumped through): the blocks hold pointers themselves (64-bit-sensitive).  dil_ is BORROWED (the C1 argument: the owner's DIL descriptor).
+class V90Modem size 0x49c0 cxx P45_V90Modem mirror ModemV90Obj
+  0x0000 ptr-into-heap mod_      # V90Modulator * (side 0) or NULL
+  0x0004 ptr-into-heap dem_      # V90Demodulator * (side 1) or NULL
+  0x0008 ptr-into-heap info_     # V90Phase2Info * (heap 0x24)
+  0x000c ptr-into-heap jd_       # V90Jd * (heap 0x90)
+  0x0010 ptr-into-heap jd92_     # V92Jd * (heap 0xdc)
+  0x0014 ptr-into-heap dil_      # tagV90DILdescriptor * (C1 arg 3, borrowed): reset hands it to setDilDescriptor
+  0x0018 unknown-region mp1_ 0x650      # V90MappingParams (the TRN2d parameters)
+  0x0668 unknown-region mp2_ 0x650      # V90MappingParams (the data-phase parameters)
+  0x0cb8 unknown-region addCp_ 0x18     # tagV90AdditionalCPinfo
+  0x0cd0 unknown-region mp_ 0x124       # V90MP (constructed / destroyed by the modem)
+  0x0df4 align8 cpalign_
+  0x0df4 unknown-region cp_head_=cp_.type_ 0xc88      # V90CP up to its heap_ pointers
+  0x1a7c ptr-into-heap cp_heap_=cp_.heap_ 6
+  0x1a94 unknown-region cp_tail_=cp_.wCa0_ 0x2f20
+  0x49b4 align8 cpend_
+  0x49b4 ptr-into-heap params_   # V90Parameters * (heap 0x558): probingMode (+4) is read by reset
+  0x49b8 u32 session_            # C1 arg 6 / setSessionFlag: the V.92 session flag
+  0x49bc u32 side_               # C1 arg 1: 0 = Digital (modulator), 1 = Analog (demodulator), anything else = illegal (the methods print and do nothing)
+
+# V92Modem: the V.92 counterpart (0xaac bytes on i386): only the Analog side (1) has a V92Modulator (mod_); side 0 leaves mod_ NULL.  Heap-owned: V92Parameters (0xdc), V92Phase2Info (0x2c), V92CP (0x918),
+# the V92MappingParams (0xb4, mapping_, with its two groups of arrays made by V92createConstellations / V92createFilterCoefficients).  EMBEDDED: the V92Ja block (+0xc, 0xa90 bytes: a length word, then the bits
+# that V92DILdescriptorPacker writes: the modulator gets a V92Ja * to it).
+class V92Modem size 0xaac cxx P45_V92Modem mirror ModemV92Obj
+  0x0000 ptr-into-heap mod_      # V92Modulator * (heap 0x90) or NULL
+  0x0004 ptr-into-heap params_   # V92Parameters * (heap 0xdc)
+  0x0008 ptr-into-heap info_     # V92Phase2Info * (heap 0x2c)
+  0x000c u32 jaLen_=ja_.len_     # the V92Ja block: the length word V92DILdescriptorPacker writes
+  0x0010 unknown-region jaBits_=ja_.bits_ 0xa8c
+  0x0a9c ptr-into-heap dil_      # tagV90DILdescriptor * (C1 arg 4, borrowed)
+  0x0aa0 ptr-into-heap mapping_  # V92MappingParams * (heap 0xb4)
+  0x0aa4 ptr-into-heap cp_       # V92CP * (heap 0x918)
+  0x0aa8 u32 side_               # C1 arg 1: 1 = the modulator side; 0 = nothing; anything else = illegal

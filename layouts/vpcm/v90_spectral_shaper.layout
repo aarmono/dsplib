@@ -1,0 +1,45 @@
+# P21 layouts (32-bit, measured from the blob: C1 ctors, reset, startAccumulation, process, advanceTrellis; see porting/decompiled/dp/p21_p22_spectral_echo_prefilter.txt)
+# regenerate: tools/layout_gen.py layouts/vpcm/v90_spectral_shaper.layout --chunk p21 --out-port src/vpcm/v90_spectral_shaper_layout.inc --port-header vpcm/v90_spectral_shaper.h --inc-banner chunk
+# V90SpectralVerifier: embedded in V90Demodulator at +0x210 (0x2c bytes); the C1 constructor builds a heap Psd (sysdep_malloc(0x10) on i386) and two float blocks.
+class V90SpectralVerifier size 0x2c cxx P21_V90SpectralVerifier mirror SvObj
+  0x00 ptr-into-heap params_       # V90Parameters * (borrowed)
+  0x04 ptr-into-heap psd_          # heap Psd (0x10 B on i386, 0x18 on x86-64), dumped field-wise by the harness with the P03 table
+  0x08 float32 sampleFreq_         # params->spectralVerifierSampleFreq (a float copy: fst)
+  0x0c u32 fftLen_                 # params->spectralVerifierFftLen
+  0x10 u32 psdLen_                 # params->spectralVerifierPsdLen (samples gathered before one Psd run)
+  0x14 float32 resolution_         # (float)(sampleFreq / (long double)fftLen): Hz per bin
+  0x18 ptr-to-heap buf_            # heap: psdLen_ floats (the gathered input)
+  0x1c ptr-to-heap spec_           # heap: fftLen_ / 2 floats (the Psd output in dB)
+  0x20 u32 fill_                   # samples gathered so far
+  0x24 u32 state_                  # 0 idle, 1 accumulating, 2 spectrum ready
+  0x28 u32 flag_                   # checkSpecialSpectralConditions result: 0 none, 1 German ISDN NT1 box, 2 German PBX, 3 severe codec
+# V90SpectralShaper: embedded in V90Mapper at +0x68c (0x6c bytes); a SerialDifferentialEncoder<uchar> (1 B), a ParallelDifferentialEncoder<uchar> and a V90SpectralShapingFilter are
+# embedded by value (flattened here: `name=a.b` gives the member designator of the real class; their own tables are those of P01 / P06).
+class V90SpectralShaper size 0x6c cxx P21_V90SpectralShaper mirror ShObj
+  0x00 u32 depth_                  # reset arg 1: the memory length K of the trellis (valid 0 .. 3)
+  0x04 u32 arg_                    # reset arg 2 (6 / arg_ = symbols' sample count)
+  0x08 u32 spf_                    # samples per symbol: 6 / arg_ (0 when arg_ == 0)
+  0x0c u8 bitsIn_ 6                # bitsIn_[0] = 0, bitsIn_[1 ..] = the caller's bits
+  0x12 u8 bitsDiff_ 6              # after the serial differential encoder (odd positions)
+  0x18 u8 bitsOut_ 6               # after the parallel differential encoder: the sign decisions
+  0x1e unknown-region pad1e_ 2     # never touched
+  0x20 u32 state_                  # trellis state (0 / 1)
+  0x24 u32 delay_                  # symbols still to pass before advanceTrellis runs
+  0x28 ptr-to-heap histA_          # heap: 24 shorts (sysdep_malloc(0x30)), the signed sample history
+  0x2c ptr-to-heap histB_          # heap: 24 shorts, the candidate buffer
+  0x30 u32 fill_                   # write position in histA_
+  0x34 u32 len_                    # (depth_ + 1) * spf_
+  0x38 u8 sde_state_=sde_.state_   # SerialDifferentialEncoder<uchar>
+  0x39 unknown-region pad39_ 3     # padding before the embedded PDE (never touched)
+  0x3c ptr-to-heap pde_state_=pde_.state_    # ParallelDifferentialEncoder<uchar>: heap lanes block (sysdep_malloc(6))
+  0x40 u32 pde_cap_=pde_.cap_
+  0x44 u32 pde_n_=pde_.n_
+  0x48 float32 ssf_c0_=ssf_.c0_    # V90SpectralShapingFilter
+  0x4c float32 ssf_c1_=ssf_.c1_
+  0x50 float32 ssf_c2_=ssf_.c2_
+  0x54 float32 ssf_c3_=ssf_.c3_
+  0x58 float32 ssf_s0_=ssf_.s0_
+  0x5c float32 ssf_s1_=ssf_.s1_
+  0x60 float32 ssf_s2_=ssf_.s2_
+  0x64 float32 ssf_s3_=ssf_.s3_
+  0x68 u32 ssf_N_=ssf_.N_

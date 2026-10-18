@@ -1,0 +1,95 @@
+# P40 layout (32-bit, measured from the blob: the C1 constructor, reset, process and `member_map.py blob --class V90Equalizer --subobjects` over ALL 29 methods; P41 / P42 reuse this file)
+# regenerate: tools/layout_gen.py layouts/vpcm/v90_equalizer_process.layout --chunk p40 --out-port src/vpcm/v90_equalizer_layout.inc --port-header vpcm/v90_equalizer.h --inc-banner chunk
+# V90Equalizer: the adaptive equalizer of the V.90 / V.92 receiver (a linear FIR equalizer + a decision feedback equalizer (DFE) on the PCM-level symbols, LMS adapted in float; an optional 16-bit integer ("MMX")
+# implementation of both for the data phase), 0x150 bytes on i386, a plain class (no vptr, no base class, no embedded sub-object); V90Demodulator embeds it.  Constructor (C1): linear length = arg1 rounded down to
+# a multiple of 4 (+0xc), DFE length = arg2 rounded down to a multiple of 4 (+0x38), the objects it USES are plain pointers (p3, p4, demapper, connection evaluator, spectral verifier, parameters, resampler,
+# pre-filter); it allocates the float tables (linear coefficients / history, the two fade-edge windows, the DFE coefficients / history, the 300-float MSE history) and the 16-bit tables of the MMX mode
+# (coefficient hi / lo halves, history, input / output buffers) with sysdep_malloc.  The aligned pointers (+0xdc / +0xe0 / +0xf0 / +0x11c / +0x120 / +0x130) point 8-byte aligned INTO those blocks.
+# Member names are descriptive (the vendor's are unknown).
+class V90Equalizer size 0x150 cxx P40_V90Equalizer mirror EquObj
+  0x0000 ptr-into-heap resampler_  # V90Resampler * (C1 last-but-one arg): the timing-recovery resampler (setBllState / SdHalfBaudDft / setTimingOffset)
+  0x0004 u32 bllSaved_             # process: a copy of the resampler's state_ (+0x94) when the BLL state is switched back to 0
+  0x0008 u16 w8_                   # reset clears it; read as 16 bit (ev 10: divisor of the DFE beta, debug print)
+  0x000a unknown-region pad0a_ 2   # never touched
+  0x000c u32 linLen_               # linear equalizer length N (C1 arg 1 & ~3)
+  0x0010 float32 linBeta_          # LMS step of the linear equalizer (setLinearEquBeta; reset 1e-12 style constant 0x283424dc)
+  0x0014 ptr-to-heap linCoef_      # float[N] linear coefficients
+  0x0018 ptr-to-heap linHist_      # float[linHistLen_] input history, newest at the LOWEST index (linPos_)
+  0x001c u32 linHistLen_           # params->linearEquHistoryLength / 2 * 2
+  0x0020 u32 linPos_               # index of the newest sample in linHist_
+  0x0024 ptr-to-heap fadeWinA_     # float[N] fade-edge window (hamming), linearEquFadeEdges
+  0x0028 ptr-to-heap fadeWinB_     # float[N]
+  0x002c u32 fadeLenA_             # reset: left edge length
+  0x0030 u32 fadeLenB_             # reset: right edge length
+  0x0034 u32 frameCnt_             # process: symbols pairs since the last fade-edge cycle (params->linearEquFadeEdgesCycle)
+  0x0038 u32 dfeLen_               # DFE length M (C1 arg 2 & ~3)
+  0x003c float32 dfeBeta_          # LMS step of the DFE (setDfeBeta)
+  0x0040 ptr-to-heap dfeCoef_      # float[M] DFE coefficients
+  0x0044 ptr-to-heap dfeHist_      # float[M] past decision errors (newest at index 0)
+  0x0048 ptr-into-heap p3_         # V90Phase3Demodulator * (C1 arg 3)
+  0x004c ptr-into-heap p4_         # V90Phase4Demodulator * (C1 arg 4)
+  0x0050 ptr-into-heap dem_        # V90Demapper * (C1 arg 5)
+  0x0054 ptr-into-heap ce_         # V90ConnectionEvaluator * (C1 arg 6)
+  0x0058 ptr-into-heap sv_         # V90SpectralVerifier * (C1 arg 7)
+  0x005c ptr-into-heap pf_         # V90PreFilter * (C1 last arg but one)
+  0x0060 u32 mode_                 # process: the decision mode (0 .. 6: 0 plain rounding, 1 phase-3 decision (float), 2 phase-4 decision (float, clipped), 3 phase-4 TRN2d known data / demapper, 4 phase-4 (short), 5 data phase wait, 6 phase 3 (float, V.92))
+  0x0064 u32 event_                # process: output marker of the last pair (cleared at the start; the owner V90Demodulator::progress reads it)
+  0x0068 u32 pend_                 # process: a sample of the previous call is pending (an odd number of samples)
+  0x006c float32 pendSample_       # the pending sample (moved as a word)
+  0x0070 u32 errCnt_               # process: pairs since the last error-energy block
+  0x0074 u32 errLimit_             # params->errorEnergyMeanBlockLen (reset)
+  0x0078 u32 errSum_               # process: sum of (int64) trunc(e * e) of the block
+  0x007c float32 rmsErr_           # process: sqrt(errSum_ / errCnt_) of the last block
+  0x0080 float32 meanErr_          # process: exponentially smoothed rms (factor errK_)
+  0x0084 float32 statMean_           # calcMeanErrorStatistics: mean of mseHist_ (n entries); process copies it to stat13c_ (P42 names)
+  0x0088 float32 statMin_# calcMeanErrorStatistics: minimum of mseHist_
+  0x008c float32 statMax_# calcMeanErrorStatistics: maximum of mseHist_
+  0x0090 float32 errK_             # params->errorEnergyMeanK (reset)
+  0x0094 u32 badCnt_               # process: symbols with a large error (> 300) in a row
+  0x0098 ptr-to-heap mseHist_      # float[300] smoothed rms history
+  0x009c u32 mseIdx_               # write index into mseHist_
+  0x00a0 u32 mseFull_              # mseHist_ wrapped
+  0x00a4 u32 mseEnable_            # process: record meanErr_ into mseHist_
+  0x00a8 ptr-into-heap params_     # V90Parameters * (C1 arg 8)
+  0x00ac u32 mmxCapable_           # C1: the 16-bit mode is allowed (params->enableEqualizerMmx and the CPU mode)
+  0x00b0 u32 mmx_                  # the 16-bit ("MMX") mode is active (convertEqualizerToMmx / restoreEqualizerToFloat)
+  0x00b4 ptr-to-heap mmxIn_        # short[512] input buffer of the MMX mode
+  0x00b8 ptr-to-heap mmxOut_       # short[256] output buffer of the MMX mode
+  0x00bc float32 linCoefMax_             # max |linCoef| (enterPhase4 / enterDataPhase scan; convertEqualizerToMmx gain basis; reset 0)
+  0x00c0 float32 linCoefMin_
+  0x00c4 float32 linMmxGain_
+  0x00c8 i32 linDiv_               # MMX: divisor of the linear sum
+  0x00cc i32 linMul_               # MMX: LMS multiplier of the linear update
+  0x00d0 i32 linShift_             # MMX: shift (low byte) of the linear update
+  0x00d4 ptr-to-heap rawLinHi_     # short[N+8] (raw block)
+  0x00d8 ptr-to-heap rawLinLo_     # short[N+8]
+  0x00dc ptr-into-heap linHi_      # 8-byte aligned into rawLinHi_: high halves of the 32-bit linear coefficients
+  0x00e0 ptr-into-heap linLo_      # 8-byte aligned into rawLinLo_: low halves
+  0x00e4 u32 linHiOff_               # alignment offset (shorts) of linHi_ into rawLinHi_ (C1: ((p + 7) & ~7) - p) >> 1; the aligned pointer is 8-byte aligned)
+  0x00e8 u32 linLoOff_
+  0x00ec ptr-to-heap rawHist16_    # short[linHistLen_ + 8] (raw block)
+  0x00f0 ptr-into-heap hist16_     # aligned into rawHist16_: the 16-bit input history
+  0x00f4 u32 hist16Off_
+  0x00f8 u32 histPos16_            # index of the newest sample in hist16_
+  0x00fc float32 dfeCoefMax_
+  0x0100 float32 dfeCoefMin_
+  0x0104 float32 dfeMmxGain_
+  0x0108 i32 dfeDiv_               # MMX: divisor of the DFE sum
+  0x010c i32 dfeMul_               # MMX: LMS multiplier of the DFE update
+  0x0110 i32 dfeShift_             # MMX: shift (low byte) of the DFE update
+  0x0114 ptr-to-heap rawDfeHi_     # short[M+8]
+  0x0118 ptr-to-heap rawDfeLo_     # short[M+8]
+  0x011c ptr-into-heap dfeHi_
+  0x0120 ptr-into-heap dfeLo_
+  0x0124 u32 dfeHiOff_
+  0x0128 u32 dfeLoOff_
+  0x012c ptr-to-heap rawDfeHist16_ # short[M+8]
+  0x0130 ptr-into-heap dfeHist16_  # aligned into rawDfeHist16_
+  0x0134 u32 dfeHist16Off_
+  0x0138 unknown-region pad138_ 4  # never touched
+  0x013c float32 stat13c_          # process / calcMeanErrorStatistics: the mean error of the previous study
+  0x0140 float32 ratio_            # process: statMean_ / stat13c_ ... (see process)
+  0x0144 u16 flag144_              # reset 1, cleared when the first study ends
+  0x0146 u16 flag146_              # reset 1, cleared when the second study ends
+  0x0148 u32 flag148_              # written by V90Demodulator (not by any V90Equalizer method): 0 / nonzero
+  0x014c float32 timingOffset_     # written by V90Demodulator: handed to setTimingOffset

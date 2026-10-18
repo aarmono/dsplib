@@ -1,0 +1,3 @@
+# tools/o0check.py --map: identifier renames old<TAB>new, applied to the REF side before comparing (symbols incl. mangled names, section-name suffixes,
+# type names, member names).  A mangled C++ name needs its own line (length prefix + parameter types), because the checker compares the symbols the objects carry.
+# A rename of a static helper is neutral for the identity gate: the same instructions, only the callee's symbol differs.  Empty: no renames yet.

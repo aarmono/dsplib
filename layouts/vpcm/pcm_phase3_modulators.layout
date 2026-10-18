@@ -1,0 +1,68 @@
+# P27 layouts (32-bit, measured from the blob: C1 ctors, reset, resetDILGenerator, generate*Symbol; see porting/decompiled/dp/p27_phase3_modulators.txt)
+# regenerate: tools/layout_gen.py layouts/vpcm/pcm_phase3_modulators.layout --chunk p27 --out-port src/vpcm/pcm_phase3_modulators_layout.inc --port-header vpcm/pcm_phase3_modulators.h --inc-banner chunk
+# V90Phase3Modulator: the V.90 phase-3 (TX) symbol generator (V90Modulator embeds one at its own +0x?? and V90Phase3Demodulator one at +0x34; 0x398 bytes on i386), a Scrambler<uchar,int> embedded at +0x20 (flattened here as scr_*).
+class V90Phase3Modulator size 0x398 cxx P27_V90Phase3Modulator mirror Ph3V90Obj
+  0x000 u32 flag_                  # setSessionFlag / C1 arg 2: nonzero = V.92 session (generateSymbol calls generateV92Symbol)
+  0x004 u32 alaw_                  # reset arg 1 (PcmType): nonzero = A-law, 0 = mu-law
+  0x008 u32 timeBase_              # reset arg 8: the Jd / DIL timeout bases
+  0x00c u16 levelA_                # linear value of reset arg 2 (a G.711 code), amplitude of the Sd / TRN1d / Jd symbols
+  0x00e u16 levelB_                # linear value of (code + 0x10): the second Sd level
+  0x010 unknown-region pad10_ 2    # never touched
+  0x012 u16 levelC_                # linear value of the G.711 code 0xd5 / 0xff (the smallest level)
+  0x014 u32 state_                 # generator state 0 .. 0xf
+  0x018 u32 cnt_                   # symbols since the state began
+  0x01c u32 event_                 # output marker (0 none, 1 .. 6 phase boundaries)
+  0x020 ptr-to-heap scr_buf_=scr_.buf_
+  0x024 ptr-into-heap scr_head0_=scr_.head0_
+  0x028 ptr-into-heap scr_t1_0_=scr_.t1_0_
+  0x02c ptr-into-heap scr_end_=scr_.end_
+  0x030 ptr-into-heap scr_wr_=scr_.wr_
+  0x034 ptr-into-heap scr_t1_=scr_.t1_
+  0x038 ptr-into-heap scr_t2_=scr_.t2_
+  0x03c u32-ptrslot scr_tail_=scr_.tail_
+  0x040 u32 jdBit_                 # the last bit of the Jd / TRN1d scrambled stream (differential state)
+  0x044 ptr-into-heap jdBits_      # V90Jd::getBitVector() of reset arg 5 (TX frame bytes, 0x48 of them)
+  0x048 ptr-into-heap v92JdBits_   # V92Jd::getJdBitVector() of reset arg 6
+  0x04c ptr-into-heap v92JdPhaseBits_  # V92Jd::getJdPhaseBitVector() of reset arg 6
+  0x050 ptr-into-heap params_      # C1 arg 1 (V90Parameters *): stored, never read
+  0x054 u8 dilN_                   # DIL descriptor copy: number of TO entries (0 = no DIL)
+  0x055 u8 dilLsp_                 # number of sp_ entries
+  0x056 u8 dilLtp_                 # number of tp_ entries
+  0x057 u8 sp_ 128                 # sign pattern (Lsp entries)
+  0x0d7 u8 tp_ 128                 # level selector pattern (Ltp entries)
+  0x157 unknown-region pad157_ 1   # never touched
+  0x158 u32 segLen_ 8              # 6 + 6 * H[k]: symbols of segment k
+  0x178 u16 ref_ 8                 # linear values of REF[k]
+  0x188 u16 to_ 256                # linear values of TO[i] (N <= 255 entries used)
+  0x388 u8 spIdx_
+  0x389 u8 tpIdx_
+  0x38a u8 toIdx_
+  0x38b unknown-region pad38b_ 1   # never touched
+  0x38c u32 segCnt_
+  0x390 u8 seg_                    # the code segment of to_[toIdx_] (0 .. 8; 8 = none)
+  0x391 unknown-region pad391_ 1   # never touched
+  0x392 u16 isRef_                 # 1 when the current level is the REF level (tp_[tpIdx_] == 0)
+  0x394 u8 code_                   # G.711 code of to_[toIdx_]
+  0x395 unknown-region pad395_ 3   # never touched
+# V92Phase3Modulator: the V.92 phase-3 (TX) symbol generator (V92Modulator embeds one; 0x50 bytes on i386), a Scrambler<uchar,int> embedded at +0x18.
+class V92Phase3Modulator size 0x50 cxx P27_V92Phase3Modulator mirror Ph3V92Obj
+  0x00 u32 arg6_                   # reset arg 6 (stored, never read)
+  0x04 u16 levelA_                 # 4000 (reset stores the constant 0xfa0, ignoring its first argument)
+  0x06 u16 levelB_                 # trunc((float)(4000 * sqrt(1.5)) + 0.5) = 4899
+  0x08 u32 state_
+  0x0c u32 cnt_
+  0x10 u32 trn1uLen_               # the TRN1u length: 12 * ((fast + slow + 12) / 12), at least 0x1fe0
+  0x14 u32 event_
+  0x18 ptr-to-heap scr_buf_=scr_.buf_
+  0x1c ptr-into-heap scr_head0_=scr_.head0_
+  0x20 ptr-into-heap scr_t1_0_=scr_.t1_0_
+  0x24 ptr-into-heap scr_end_=scr_.end_
+  0x28 ptr-into-heap scr_wr_=scr_.wr_
+  0x2c ptr-into-heap scr_t1_=scr_.t1_
+  0x30 ptr-into-heap scr_t2_=scr_.t2_
+  0x34 u32-ptrslot scr_tail_=scr_.tail_
+  0x38 u32 jaBit_                  # the last scrambled Ja bit (differential state)
+  0x3c ptr-into-heap jaBits_       # reset arg 4 (V92Ja *) + 4
+  0x40 u32 jaLen_                  # the first word of the V92Ja block
+  0x44 unknown-region pad44_ 8     # never touched
+  0x4c ptr-into-heap params_       # V92Parameters * (reads +0x88 / +0x8c)

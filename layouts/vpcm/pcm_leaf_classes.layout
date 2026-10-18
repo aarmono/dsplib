@@ -1,0 +1,104 @@
+# P06 class layouts (32-bit, measured from the blob: ctors / reset / process / printInfo / calcModulusParameters ...; see porting/decompiled/dp/p06_small_leaves.txt)
+# regenerate: tools/layout_gen.py layouts/vpcm/pcm_leaf_classes.layout --chunk p06 --out-port src/vpcm/pcm_leaf_classes_layout.inc --port-header vpcm/pcm_leaf_classes.h --inc-banner chunk
+# K56FlexFloModem has no data members (sizeof 1) and is not listed.  Where a 64-bit quantity is described as `double` the real member is an
+# int64_t (same size and i386 alignment 4, 64-bit alignment 8): the harness prints it as its 16-hex-digit bit pattern.
+class V92Mapper size 0x2c cxx P06_V92Mapper mirror MapObj
+  0x00 u16 scale_                # short
+  0x02 u8 flag_
+  0x03 unknown-region unk03_ 35  # never touched
+  0x26 u16 nbits_                # short
+  0x28 float32 power_
+
+class ModulusEncoder size 0x1c cxx P06_ModulusEncoder mirror MeObj
+  0x00 u32 m0_
+  0x04 u32 m1_
+  0x08 u32 m2_
+  0x0c u32 m3_
+  0x10 u32 m4_
+  0x14 u32 m5_
+  0x18 u32 m6_
+
+class ModulusDecoder size 0x1c cxx P06_ModulusDecoder mirror MdObj
+  0x00 u32 m0_
+  0x04 u32 m1_
+  0x08 u32 m2_
+  0x0c u32 m3_
+  0x10 u32 m4_
+  0x14 u32 m5_
+  0x18 u32 m6_
+
+class V90Phase2Info size 0x24 cxx P06_V90Phase2Info mirror P2vObj
+  0x00 u32 pcmType_
+  0x04 u32 rtd_
+  0x08 u8 uinfo_
+  0x09 u8 maxTx_
+  0x0a unknown-region pad0a_ 2
+  0x0c u32 txPoint_
+  0x10 unknown-region unk10_=arrA_ 8   # never touched by the 4 functions; the class: uint32_t *arrA_, *arrB_ (RS1 / M2)
+  0x18 pad64 pad64_18_ 8         # RS1 / M2: x86-64 only: the two pointers arrA_ / arrB_ that unk10_ stands for
+  0x18 ptr-into-heap l2_         # float[21], set by the owner
+  0x1c unknown-region unk1c_=arrD_ 4   # the class: uint32_t *arrD_ (RS1 / M2)
+  0x20 ptr-into-heap params_
+
+class V92Phase2Info size 0x2c cxx P06_V92Phase2Info mirror P2wObj
+  0x00 u32 pcmType_
+  0x04 u32 rtd_
+  0x08 u8 uinfo_
+  0x09 u8 maxTx_
+  0x0a unknown-region pad0a_ 2
+  0x0c u32 txPoint_
+  0x10 u8 shortPhase2Local_
+  0x11 u8 v92CapLocal_
+  0x12 u8 shortPhase2Remote_
+  0x13 u8 v92CapRemote_
+  0x14 u8 b14_
+  0x15 u8 b15_
+  0x16 u8 b16_
+  0x17 u8 v90UseHighCarrier_
+  0x18 unknown-region unk18_=arrA_ 8   # the class: uint32_t *arrA_, *arrB_ (RS1 / M2)
+  0x20 pad64 pad64_20_ 8         # RS1 / M2: x86-64 only: the two pointers arrA_ / arrB_ that unk18_ stands for
+  0x20 ptr-into-heap l2_
+  0x24 unknown-region unk24_=arrD_ 4   # the class: uint32_t *arrD_ (RS1 / M2)
+  0x28 ptr-into-heap params_
+
+class V90ConstellationPower size 0x90 cxx P06_V90ConstellationPower mirror CpObj
+  0x00 ptr-into-heap tab_        # table of the current radix (inside the V90MappingParams block)
+  0x04 u32 n_
+  0x08 double M_                 # int64_t
+  0x10 double A_ 7               # int64_t[7]: A_[0] = M - 1, A_[1..6] the quotients
+  0x48 u32 r_ 6
+  0x60 double D_ 6
+
+class V90SdDetector size 0x1c cxx P06_V90SdDetector mirror SdObj
+  0x00 u32 count_
+  0x04 u32 required_
+  0x08 float32 thA_
+  0x0c float32 thB_
+  0x10 float32 thC_
+  0x14 ptr-to-heap hist_         # heap block of 12 floats
+  0x18 u32 n_
+
+class V90RDetector size 0x2c cxx P06_V90RDetector mirror RdObj
+  0x00 u32 cnt_
+  0x04 u32 lim0_
+  0x08 u32 lim1_
+  0x0c u32 lim2_
+  0x10 u32 lim3_
+  0x14 u32 c0_
+  0x18 u32 c1_
+  0x1c u32 c2_
+  0x20 u16 sr_
+  0x22 unknown-region pad22_ 2
+  0x24 i32 dir_
+  0x28 ptr-into-heap params_
+
+class V90SpectralShapingFilter size 0x24 cxx P06_V90SpectralShapingFilter mirror SfObj
+  0x00 float32 c0_
+  0x04 float32 c1_
+  0x08 float32 c2_
+  0x0c float32 c3_
+  0x10 float32 s0_
+  0x14 float32 s1_
+  0x18 float32 s2_
+  0x1c float32 s3_
+  0x20 u32 N_

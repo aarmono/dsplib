@@ -1,0 +1,5 @@
+# Functions whose parameter `obj` is NOT the V.34 module object tagV34Object (tools/tier_rewrite.py leaves their `obj` sites alone).
+# Format: <port file> <function> [<function> ...]   # reason.  Evidence for each entry is in NOTES.md "T02 DONE".
+v34_agc_demod.c V34agc V34demodulate agc_level_gain_update demod_scale agc_ring_level   # obj = the RX front-end sub-object b = obj+0x264 (V34agc/V34demodulate offsets 0x13c ring, 0x130 end pointer, 0x122 flags ...)
+v34_agc_demod.c V34ModulatorProcess   # obj = the modulator sub-object (obj+0x1450): PTR(obj,4) read pointer, ring queue
+v34_unused.c preempindex         # dead in the blob (no caller); its offsets 0xbc / 0x324 / 0x350 / 0x37c / 0x3d4 cannot be the V.34 object (0xbc is inside rxWords_); object unknown

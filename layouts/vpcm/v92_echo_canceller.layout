@@ -1,0 +1,31 @@
+# P22 layouts (32-bit, measured from the blob: C1 ctors, reset, setState, updateEchoHistory, process, selectFilter; see porting/decompiled/dp/p21_p22_spectral_echo_prefilter.txt)
+# regenerate: tools/layout_gen.py layouts/vpcm/v92_echo_canceller.layout --chunk p22 --out-port src/vpcm/v92_echo_canceller_layout.inc --port-header vpcm/v92_echo_canceller.h --inc-banner chunk
+# V92EchoCanceller: member of VPcmFloModem at +0x6bd0 (0x3c bytes)
+class V92EchoCanceller size 0x3c cxx P22_V92EchoCanceller mirror EcObj
+  0x00 ptr-into-heap params_       # V92Parameters * (borrowed)
+  0x04 ptr-into-heap arma_         # heap FloatARMA (0x34 B on i386), dumped field-wise by the harness with the P02 table
+  0x08 i32 state_                  # 0 filter only, 1 count the delay before training, 2 fast training, 3 slow training
+  0x0c u32 limit_                  # samples to stay in state 1 / 2 / 3
+  0x10 u32 count_                  # samples processed in the current state
+  0x14 u32 nCoef_                  # echo filter taps (multiple of 4)
+  0x18 u32 nCoefM1_                # nCoef_ - 1
+  0x1c u32 histLen_                # length of the far-end history
+  0x20 ptr-to-heap coef_           # nCoef_ floats
+  0x24 ptr-to-heap hist_           # histLen_ floats
+  0x28 u32 pos_                    # read position of the filter in hist_
+  0x2c u32 histFill_               # write position of updateEchoHistory
+  0x30 float32 beta_               # adaptation step
+  0x34 float32 decay_              # step decay per sample
+  0x38 u32 delay_                  # echo delay in samples
+# V90PreFilter: member of V90Demodulator at +0x6c (0x28 bytes); it DERIVES from FloatFIR (P02; the blob calls FloatFIR's base-object C2 / D2): the base members are named here by `name=member`
+class V90PreFilter size 0x28 cxx P22_V90PreFilter mirror PfObj
+  0x00 ptr-into-heap fir_coef_=coef_    # borrowed: points into preFilterCoefType1 / 2 / 3 or NULL
+  0x04 ptr-to-heap fir_hist_=hist_      # heap block of 139 floats (40 + 99)
+  0x08 u32 fir_taps_=taps_
+  0x0c u32 fir_histLen_=histLen_
+  0x10 i32 fir_room_=room_
+  0x14 i32 codecType_              # index into dataBase (hardware codec type), 0 .. 15
+  0x18 ptr-into-heap info_         # V90Phase2Info * (borrowed): info->l2_ is the float[21] the loop selection compares
+  0x1c ptr-into-heap params_       # V90Parameters * (borrowed)
+  0x20 i32 filterIdx_              # the coefficient set currently loaded (gain index), or the type 3 index - 20
+  0x24 i32 refLoop_                # the reference-loop record chosen by autoSelection, -1 = none

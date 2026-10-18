@@ -1,0 +1,54 @@
+# P17 layout (32-bit, measured from the blob: C1 / reset stores, the accessors; see porting/decompiled/dp/p16_p17_v92tx_connectioneval.txt)
+# regenerate: tools/layout_gen.py layouts/vpcm/v90_connection_evaluator.layout --chunk p17 --out-port src/vpcm/v90_connection_evaluator_layout.inc --port-header vpcm/v90_connection_evaluator.h --inc-banner chunk
+# V90ConnectionEvaluator: heap block of V90Demodulator (sysdep_malloc(0xbc)); `params_` points to the V90Parameters block (borrowed: the harness object is not an arena block, the dump nulls it)
+class V90ConnectionEvaluator size 0xbc cxx P17_V90ConnectionEvaluator mirror EvObj
+  0x00 ptr-into-heap params_                   # V90Parameters * (borrowed)
+  0x04 u32 nofRetrainsSoFar_                   # printStatus order
+  0x08 u32 nofRateRenegSoFar_                  # counts remote rate renegotiations (indicateRemoteRateReneg)
+  0x0c u32 nofRemoteRetrainsSoFar_
+  0x10 u32 rateUpCounter_
+  0x14 u32 rateDownCounter_
+  0x18 u32 retrainCounter_
+  0x1c u32 evaluatorCounter_
+  0x20 u32 fadeCounter_
+  0x24 i32 debugCounter_                       # reset 0, counts weights up to debugPeriod_
+  0x28 i32 enableRrnDown_                      # params->enableRrnDown
+  0x2c i32 enableRrnUp_                        # params->enableRrnUp
+  0x30 u32 nofRemoteRateRenegBeforeRetrain_    # params->nofRemoteRateRenegBeforeRetrain
+  0x34 i32 debugAlternate_                     # params->debugConnectionEvaluatorAlternateDebug
+  0x38 i32 debugFallBack_
+  0x3c i32 debugRetrain_
+  0x40 i32 debugRateUp_
+  0x44 i32 debugRateDown_
+  0x48 u32 retrainCounterFadeCount_            # params->retrainCounterFadeCount
+  0x4c u32 remoteRrnCounterFadeCount_
+  0x50 u32 rateUpDetectDuration_
+  0x54 u32 minDurationInDataBeforeRrnUp_
+  0x58 u32 rateDownDetectDuration_
+  0x5c u32 minDurationInDataBeforeRrnDown_
+  0x60 u32 retrainDetectDuration_
+  0x64 u32 largeErrorDuration_                 # 0x640
+  0x68 u32 largeErrorDurationPhase4_           # 0x640
+  0x6c i32 debugPeriod_                        # params->debugConnectionEvaluatorPeriod
+  0x70 float32 avePdsnr_
+  0x74 u32 weight_                             # samples (symbols) behind avePdsnr_; the evaluate functions consume and clear it
+  0x78 i32 delayedRetrainRequest_
+  0x7c i32 delayedRetrainEnable_
+  0x80 i32 altDebugState_
+  0x84 i32 phase3EvalActive_
+  0x88 i32 trn1dEvalActive_
+  0x8c i32 externalCommand_                    # -1 = none; 1 .. 6 = external demands
+  0x90 i32 rrnSilence_                         # written by the evaluate functions: 0 or params->rrnSilenceRequested or a flag
+  0x94 i32 retrainInsteadOfRateDown_
+  0x98 i32 noRestrictionRrn_
+  0x9c u16 initDmin_                           # int16
+  0x9e u16 curDmin_                            # int16
+  0xa0 float32 threshUp_
+  0xa4 float32 threshDown_
+  0xa8 float32 threshRetrain_
+  0xac float32 pdsnrV34DropThreshPhase4_       # params->phase4ErrorForV34Fallback (a word copy), later params->unk434
+  0xb0 u16 phase4RatioCheckEnabled_            # int16, reset 1
+  0xb2 u16 altRbsDetectedOnQc_                 # int16, reset 0
+  0xb4 u16 echoRrnState_                       # int16, reset 0 (0 .. 3)
+  0xb6 unknown-region unkb6_ 2                 # never touched
+  0xb8 float32 echoRrnFactor_

@@ -1,0 +1,5 @@
+# tools/o0check.py --unified.  Columns (TAB-separated): width  type  old_sizeof  new_sizeof  reason
+# A type that was a PREFIX declaration of one object and became the whole object when several definitions of it were unified: the sizeof change
+# old -> new is accepted at the stated width (m32 or m64); the bytes between the sizes may be new; no member may move or change.
+# Rows whose first column is `member` are member renames of ONE type: member<TAB>type<TAB>old<TAB>new<TAB>reason (for where several name sets overlay
+# the same bytes and the rename pairing cannot choose; offset and size are still compared).  Empty: no accepted changes yet.

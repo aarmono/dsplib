@@ -1,0 +1,123 @@
+# P37 layout (32-bit, measured from the blob: the C1 constructor, reset, getV90Decision / getV92Decision and `member_map.py blob --class V90Phase4Demodulator --subobjects` over ALL 17 methods; P38 reuses this file)
+# regenerate: tools/layout_gen.py layouts/vpcm/v90_phase4_demod_decisions.layout --chunk p37 --out-port src/vpcm/v90_phase4_demod_layout.inc --port-header vpcm/v90_phase4_demod.h --inc-banner chunk
+# V90Phase4Demodulator: the V.90 / V.92 phase-4 (RX) state machine (the demodulator side of phase 4: Ri / RiNot, TRN2d known data with the linear mapping study, MP / CP / Ed, B1d, the RRN silence echo
+# energy measurement, Rt / RtNot / Rf), 0x351c bytes on i386, a plain class (no vptr, no base class); V90Demodulator embeds it.  It EMBEDS a V90Phase4Modulator (+0x50, the P30 class, 0x2fac B: the signal it knows,
+# flattened here as mod_*) and TWO V90RDetector objects (+0x2ffc r_ for R / Rt / Ri / RiNot, +0x3028 rf_ for Rf / Rd detection; the P06 class, 0x2c B each).  The objects it USES (V90Demapper, V90Descrambler<uchar,int>,
+# V90MP, V90CP, V90ConnectionEvaluator, V90MappingParams x2, V90Parameters, V90AutoDigitalImpDetector, V90Phase3Demodulator) are plain pointers (the C1 constructor's arguments).  Member names are descriptive.
+# The V90Demapper member at +0x1eb4 (p28 `z1eb4_`, "zeroed by reset, never read" there) IS read here: it is the flag "linear mapping study enabled" (written 1 / 0 by getV90 / getV92Decision state 3).
+class V90Phase4Demodulator size 0x351c cxx P37_V90Phase4Demodulator mirror Ph4DemObj
+  0x0000 u32 session_              # C1 arg 11 / setSessionFlag: nonzero = V.92 session (getDecision calls getV92Decision), also copied into the modulator
+  0x0004 ptr-into-heap params_     # V90Parameters * (C1 arg 8, borrowed)
+  0x0008 u8 code_                  # reset arg 1 (unsigned char): the G.711 code handed to the modulator's reset
+  0x0009 unknown-region pad9_ 3    # never touched
+  0x000c ptr-into-heap mp1_        # V90MappingParams * (C1 arg 1): word 0 is copied to the MP's / CP's trn2dD_; resetNoSpectral argument of the TRN2d states
+  0x0010 ptr-into-heap mp2_        # V90MappingParams * (C1 arg 2): word 0 = bits per frame (B1d bit counting), resetNoSpectral argument of the Ed state
+  0x0014 ptr-into-heap cp_         # V90CP * (C1 arg 4)
+  0x0018 ptr-into-heap mp_         # V90MP * (C1 arg 5)
+  0x001c ptr-into-heap p3_         # V90Phase3Demodulator * (C1 arg 9): stored, never read by the P37 / P38 functions
+  0x0020 u32 state_                # Phase4DemodulatorState
+  0x0024 u32 cnt_                  # symbols since the state began (incremented BEFORE the dispatch)
+  0x0028 u32 event_                # output marker of the symbol just processed (cleared at the start; the owner V90Demodulator::progress reads it)
+  0x002c u32 limit_                # reset: params + 0x4c0 (V.92) / + 0x36c (V.90): the TRN2d DD length; state 3 raises event 0x18 at limit_ / 2, 0x19 at limit_
+  0x0030 u8 cpSeen_                # V.92: a CP / short CP frame was seen (WaitForCP); cleared by reset / resetBeforRRN / RtNot / RfNot
+  0x0031 unknown-region pad31_ 3   # never touched
+  0x0034 u32 w34_=quickConnect_                  # reset arg 4: selects the TRN2d linear-mapping-study length (0x1c20 / 0x960 in RiNot)
+  0x0038 u32 w38_=rtPending_                  # RRN flag: reset / resetBeforRRN set it, detectRRN sets 1 when session_ == 0, "Rt" clears it
+  0x003c u32 w3c_=rrnPending_                  # RRN flag: reset / resetBeforRRN clear / set, cleared by the B1d end
+  0x0040 u32 w40_=rrnSilence_                  # reset clears it (read by the V.92 CP states)
+  0x0044 u32 w44_=answerDue_                  # V.92 CP flags (reset / resetBeforRRN clear them)
+  0x0048 u32 w48_=answerSent_
+  0x004c u32 w4c_                  # V.92: a copy of the CP's word at +0xca0 (wCa0_)
+  # --- the embedded V90Phase4Modulator (flattened from test/vpcm/v90_phase4_modulator_symbol.layout, +0x50; `align8` = the sub-object holds pointers: 8-aligned and padded on x86-64) ---
+  0x0050 align8 modalign_
+  0x0050 u32 mod_flag_=mod_.flag_   # C1 arg 2 / setSessionFlag: nonzero = V.92 session (generateSymbol calls generateV92Symbol)
+  0x0054 u32 mod_state_=mod_.state_   # Phase4ModulatorState
+  0x0058 u32 mod_cnt_=mod_.cnt_   # symbols since the state began (incremented BEFORE the dispatch)
+  0x005c u32 mod_event_=mod_.event_   # output marker of the symbol just generated (0 none, 4 = TRN2d ended in V.92, 7 = Phase4 terminated)
+  0x0060 u32 mod_nextState_=mod_.nextState_   # reset: flag_ == 0 ? 4 : 5; V.90: the state entered after TRN2d (4 = "MP", else "DIRECTLY to MPNot"); setNextStateAfterTRN2d
+  0x0064 u8 mod_mpNotSeen_=mod_.mpNotSeen_   # V.90 state 0xe: set by recivedCP-family, cleared by generateV90Symbol
+  0x0065 unknown-region mod_pad15_=mod_.pad15_ 3   # never touched
+  0x0068 u32 mod_cpCnt_=mod_.cpCnt_   # V.92: symbols while the repeated-CPd flag is set (state 5)
+  0x006c u8 mod_cpFlag_=mod_.cpFlag_   # V.92 state 5: count cpCnt_
+  0x006d unknown-region mod_pad1d_=mod_.pad1d_ 3   # never touched
+  0x0070 u32 mod_w20_=mod_.w20_   # V.92 flags / counters of the RRN part (written by reset, resetBeforRRN, recived*)
+  0x0074 u32 mod_w24_=mod_.w24_   
+  0x0078 u32 mod_w28_=mod_.w28_   # copied to the CP's word at +0xca0 when a CP / SUVd starts
+  0x007c u32 mod_w2c_=mod_.w2c_   
+  0x0080 u32 mod_w30_=mod_.w30_   
+  0x0084 u32 mod_w34_=mod_.w34_   # V.92 state 0x10: silence goes to state 0x18 when zero, else 0x17
+  0x0088 u32 mod_pcm_=mod_.pcm_   # reset arg 1 (PcmType): handed to resetNoSpectral
+  0x008c u16 mod_level_=mod_.level_   # linear value of reset arg 2 (a G.711 code, sign dropped): the Ri / RiNot amplitude
+  0x008e unknown-region mod_pad3e_=mod_.pad3e_ 2   # never touched
+  0x0090 u32 mod_limit_=mod_.limit_   # reset arg 5: V.92 state 5 stops counting at limit_ + 0x320
+  0x0094 ptr-into-heap mod_b2s_=mod_.b2s_   # V90BitsToSymbol * (passed to the constructor or allocated by it, 0x24 bytes)
+  0x0098 ptr-into-heap mod_mp_=mod_.mp_   # V90MP *
+  0x009c ptr-into-heap mod_dataMp_=mod_.dataMp_   # V90MappingParams * (the data-phase parameters: B1d)
+  0x00a0 ptr-into-heap mod_trn2dMp_=mod_.trn2dMp_   # V90MappingParams * (the TRN2d parameters)
+  0x00a4 ptr-into-heap mod_cp_=mod_.cp_   # V90CP *
+  0x00a8 ptr-to-heap mod_scr_buf_=mod_.scr_.buf_   
+  0x00ac ptr-into-heap mod_scr_head0_=mod_.scr_.head0_   
+  0x00b0 ptr-into-heap mod_scr_t1_0_=mod_.scr_.t1_0_   
+  0x00b4 ptr-into-heap mod_scr_end_=mod_.scr_.end_   
+  0x00b8 ptr-into-heap mod_scr_wr_=mod_.scr_.wr_   
+  0x00bc ptr-into-heap mod_scr_t1_=mod_.scr_.t1_   
+  0x00c0 ptr-into-heap mod_scr_t2_=mod_.scr_.t2_   
+  0x00c4 u32-ptrslot mod_scr_tail_=mod_.scr_.tail_   
+  0x00c8 u8 mod_bits_=mod_.bits_ 12000   # scrambled bit buffer (0x2ee0 bytes)
+  0x2fa8 ptr-into-heap mod_mpBits_=mod_.mpBits_   # V90MP::getBitVector(mpLen_)
+  0x2fac u32 mod_mpLen_=mod_.mpLen_   # its length
+  0x2fb0 u32 mod_mpFrame_=mod_.mpFrame_   # symbols per MP frame: 6 * mpLen_ / V90MP::trn2dD_
+  0x2fb4 u32 mod_target_=mod_.target_   # the symbol count that ends the running state (Ed: b2s_->extra_ + 12)
+  0x2fb8 u16 mod_rdrt_=mod_.rdrt_ 6   # setRdRtSymbols: the six-symbol Rd / Rt pattern
+  0x2fc4 u16 mod_rf_=mod_.rf_ 12   # setRfSymbols: the twelve-symbol Rf pattern
+  0x2fdc ptr-into-heap mod_cpBits_=mod_.cpBits_   # V90CP::getBitVector(cpLen_)
+  0x2fe0 u32 mod_cpLen_=mod_.cpLen_   # its length
+  0x2fe4 u32 mod_cpFrame_=mod_.cpFrame_   # symbols per CP frame: 6 * cpLen_ / V90CP::trn2dD_
+  0x2fe8 u32 mod_arg8_=mod_.arg8_   # C1 arg 8 (stored, never read)
+  0x2fec u32 mod_w2f9c_=mod_.w2f9c_   
+  0x2ff0 u32 mod_w2fa0_=mod_.w2fa0_   
+  0x2ff4 u32 mod_notOwned_=mod_.notOwned_   # 1 = the V90BitsToSymbol was passed in, 0 = the constructor allocated it (the destructor frees it)
+  0x2ff8 ptr-into-heap mod_params_=mod_.params_   # C1 arg 1 (V90Parameters *): stored, never read
+  0x2ffc align8 modend_
+  # --- the two V90RDetector objects (flattened from test/vpcm/pcm_leaf_classes.layout; each 0x2c B on i386, 0x30 on x86-64) ---
+  0x2ffc align8 ralign_
+  0x2ffc u32 r_cnt_=r_.cnt_   
+  0x3000 u32 r_lim0_=r_.lim0_   
+  0x3004 u32 r_lim1_=r_.lim1_   
+  0x3008 u32 r_lim2_=r_.lim2_   
+  0x300c u32 r_lim3_=r_.lim3_   
+  0x3010 u32 r_c0_=r_.c0_   
+  0x3014 u32 r_c1_=r_.c1_   
+  0x3018 u32 r_c2_=r_.c2_   
+  0x301c u16 r_sr_=r_.sr_   
+  0x301e unknown-region r_pad22_=r_.pad22_ 2   
+  0x3020 i32 r_dir_=r_.dir_   
+  0x3024 ptr-into-heap r_params_=r_.params_   
+  0x3028 align8 rend_
+  0x3028 align8 rfalign_
+  0x3028 u32 rf_cnt_=rf_.cnt_   
+  0x302c u32 rf_lim0_=rf_.lim0_   
+  0x3030 u32 rf_lim1_=rf_.lim1_   
+  0x3034 u32 rf_lim2_=rf_.lim2_   
+  0x3038 u32 rf_lim3_=rf_.lim3_   
+  0x303c u32 rf_c0_=rf_.c0_   
+  0x3040 u32 rf_c1_=rf_.c1_   
+  0x3044 u32 rf_c2_=rf_.c2_   
+  0x3048 u16 rf_sr_=rf_.sr_   
+  0x304a unknown-region rf_pad22_=rf_.pad22_ 2   
+  0x304c i32 rf_dir_=rf_.dir_   
+  0x3050 ptr-into-heap rf_params_=rf_.params_   
+  0x3054 align8 rfend_
+  0x3054 ptr-into-heap dem_        # V90Demapper * (C1 arg 3)
+  0x3058 ptr-into-heap descr_      # Descrambler<unsigned char, int> * (C1 arg 6)
+  0x305c u8 buf_ 1176              # the bytes V90Demapper::process wrote (the out buffer; at most 1176)
+  0x34f4 u32 nBytes_               # their count (the `unsigned &` argument of process)
+  0x34f8 ptr-into-heap ce_         # V90ConnectionEvaluator * (C1 arg 7): V.90 Ed reads rrnSilence_ (+0x90)
+  0x34fc u32 w34fc_                # reset: the V90MappingParams word 0 (stored, never read)
+  0x3500 u32 b1dZeros_             # B1d: the zero bits after the delay
+  0x3504 u32 b1dBits_              # B1d: the bits counted
+  0x3508 float32 echoBefore_       # error energy accumulator / mean before the echo cancellation (RRN silence)
+  0x350c float32 echoAfter_        # ... after
+  0x3510 u32 keepRate_             # 1 when the SCR echo energy [dB] is above params rrnSilenceMinEchoEnergyForKeepRate (+0x404); reset clears it
+  0x3514 ptr-into-heap adid_       # V90AutoDigitalImpDetector * (C1 arg 10): trn2dKnownDemod reads its +0 (tables) and +0xa95c (A-law flag)
+  0x3518 u32 studyEnd_             # the symbol count at which the linear mapping study is enabled in state 3 (0x7d0 / 0x258 / 0 after reset)

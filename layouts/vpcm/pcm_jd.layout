@@ -1,0 +1,19 @@
+# P14 layouts (32-bit, measured from the blob; see porting/decompiled/dp/p13_p15_dil_jd_modulus.txt)
+# regenerate: tools/layout_gen.py layouts/vpcm/pcm_jd.layout --chunk p14 --out-port src/vpcm/pcm_jd_layout.inc --port-header vpcm/pcm_jd.h --inc-banner chunk
+# V90Jd: embedded in V90Modem (0x90 bytes); V92Jd: embedded in V90Modem (0xdc bytes)
+class V90Jd size 0x90 cxx P14_V90Jd mirror V90JdObj
+  0x00 u8 ones_
+  0x01 u8 idx_
+  0x02 u8 bits_ 0x48
+  0x4a unknown-region unk4a_ 2
+  0x4c u32 crc_ 16
+  0x8c u32 state_
+class V92Jd size 0xdc cxx P14_V92Jd mirror V92JdObj
+  0x00 u8 ones_
+  0x01 u8 idx_
+  0x02 u8 bits_ 0x48
+  0x4a u8 phase_ 0x48
+  0x92 unknown-region unk92_ 2
+  0x94 u32 crc_ 16
+  0xd4 u32 stateJd_
+  0xd8 u32 statePhase_

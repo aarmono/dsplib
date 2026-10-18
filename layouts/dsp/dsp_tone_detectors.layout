@@ -1,0 +1,37 @@
+# P04 class layouts (32-bit, measured from the blob: C2 ctor stores, reset, process; see porting/decompiled/dp/p04_tone_detectors.txt)
+# regenerate: tools/layout_gen.py layouts/dsp/dsp_tone_detectors.layout --chunk p04 --out-port src/dsp/dsp_tone_detectors_layout.inc --port-header dsp/dsp_tone_detectors.h
+# iir_ is a plain (normalised) pointer on purpose: the block it owns is a GenericIIR<float,double> OBJECT (0x34 B on i386), which the harness dumps
+# field-wise with the P02 table (a raw hex dump of the block would contain raw pointers).
+class GenericToneDetector size 0x3c cxx P04_GenericToneDetector mirror TdObj
+  0x00 ptr-into-heap iir_        # heap GenericIIR<float,double> object (owning): sysdep_malloc(0x34) + GenericIIR C1 in the ctor, D1 + sysdep_free in the dtor
+  0x04 float32 thresh_           # arg 7 (an integer word move in the blob)
+  0x08 float32 ratio_            # arg 9 (integer word)
+  0x0c float32 sumX2_            # sum of x^2 of the current period
+  0x10 float32 sumY2_            # sum of y^2 (filter output)
+  0x14 float32 avgX2_            # smoothed input power
+  0x18 float32 avgY2_            # smoothed output power
+  0x1c u32 needHits_             # ceil(minSamples / period)
+  0x20 u32 maxMiss_              # ceil(maxGapSamples / period)
+  0x24 u32 count_                # samples in the current period
+  0x28 u32 period_
+  0x2c u32 hits_
+  0x30 u32 misses_
+  0x34 u32 ratioTest_
+  0x38 u32 detected_
+
+class ANSamToneDetector size 0x3c cxx P04_ANSamToneDetector mirror AnsObj
+  0x00 ptr-into-heap iir_
+  0x04 float32 thresh_
+  0x08 float32 ratio_
+  0x0c float32 sumX2_
+  0x10 float32 sumY2_
+  0x14 float32 avgX2_
+  0x18 float32 avgY2_
+  0x1c u32 needHits_
+  0x20 u32 maxMiss_
+  0x24 u32 count_
+  0x28 u32 period_
+  0x2c u32 hits_
+  0x30 u32 misses_
+  0x34 u32 ratioTest_
+  0x38 u32 detected_

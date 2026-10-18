@@ -1,0 +1,151 @@
+# P43 layout (32-bit, measured from the blob: the C1 constructor, progress and `member_map.py blob --class V90Demodulator --subobjects` over ALL 21 methods; P44 reuses this file)
+# regenerate: tools/layout_gen.py layouts/vpcm/v90_demodulator_progress.layout --chunk p43 --out-port src/vpcm/v90_demodulator_layout.inc --port-header vpcm/v90_demodulator.h --inc-banner chunk
+# V90Demodulator: the V.90 / V.92 receive side (phase 3 line probing -> phase 4 -> data), 0x298 bytes on i386, a plain class (no vptr, no base class); V90Modem embeds it.  It EMBEDS six objects
+# (flattened here, `align8` = the sub-object holds pointers: 8-aligned and padded on x86-64): an Agc<float> (+0x4c, P03), a V90PreFilter (+0x6c, P22; a FloatFIR is its base), a V90Resampler (+0x94, P05; vptr),
+# a V90ConstellationPower (+0x148, P06), a Descrambler<unsigned char, int> (+0x1e8, P01) and a V90SpectralVerifier (+0x210, P21).  The heap objects it owns are pointers: V90Equalizer (+0x1d8, P40),
+# V90Phase3Demodulator (+0x1dc, P34), V90Phase4Demodulator (+0x1e0, P37), V90Demapper (+0x1e4, P28), V90ConstellationDesigner (+0x208, P24), V90ConnectionEvaluator (+0x20c, P17),
+# V90AutoDigitalImpDetector (+0x23c, P18), V90TRN2Designer (+0x1c, P26) and six sample buffers (+0x244 .. +0x25c).  Names are by use (see porting/decompiled/dp/p43_demodulator_progress.txt).
+class V90Demodulator size 0x298 cxx P43_V90Demodulator mirror DmdObj
+  0x0000 u32 hwCodec_   # C1 arg 11 (__tHardwareCodecTypes__): 4 = USB (the silence-RRN ISP messages test it)
+  0x0004 ptr-into-heap info_   # V90Phase2Info * (C1 arg 2): rtd_ (+4) and maxTx_ (+9) are read
+  0x0008 ptr-into-heap jd_   # V90Jd * (C1 arg 3): V.90 session -> getRatesMask / getMaxLookahead
+  0x000c ptr-into-heap jd92_   # V92Jd * (C1 arg 4): V.92 session
+  0x0010 ptr-into-heap dil_   # tagV90DILdescriptor * (C1 arg 5)
+  0x0014 ptr-into-heap mp1_   # V90MappingParams * (C1 arg 6)
+  0x0018 ptr-into-heap mp2_   # V90MappingParams * (C1 arg 7): word 0 = bits per frame (the print / Agc period uses mp2_->w0 * 8000)
+  0x001c ptr-to-heap trn2d_   # V90TRN2Designer * (heap, 8 B on i386): exitPhase3
+  0x0020 ptr-into-heap cpInfo_   # tagV90AdditionalCPinfo * (C1 arg 8): word 1 is set to 1 when the data-phase constellation is designed
+  0x0024 ptr-into-heap cp_   # V90CP * (C1 arg 9)
+  0x0028 ptr-into-heap mp_   # V90MP * (C1 arg 10): the received MP (rate / type / trellis / h coefficients)
+  0x002c ptr-into-heap params_   # V90Parameters * (C1 arg 12)
+  0x0030 u32 session_   # C1 arg 14: nonzero = V.92 session (jd92_ instead of jd_)
+  0x0034 u32 phase_   # progress main state 0 .. 4 (jump table at .rodata+0x69c): 0 idle, 1 phase 3 (verifier + Sd / TRN1d / DIL), 2 phase 4, 3 first data / steady state, 4 data
+  0x0038 u32 symCnt_   # symbols (samples) since phase_ was entered; progress adds n
+  0x003c u32 state_   # sub-state / output code: V90Equalizer event_ copy (progress overwrites it first), the decisions 0x1f (fall back to V.34), 0x21 (retrain), 0x22 .. 0x26
+  0x0040 u32 flag40_   # timing-freeze flag (1 after setBllState 9 / 1 on the Sd path, 0 after the RRN / silence timing)
+  0x0044 u32 timeCnt_   # symbols in the current phase (timeout counter, phase 2)
+  0x0048 u32 timeLimit_   # its limit: 0x10680 + 2 rtd (probing) / 0x28230 + 5 rtd
+  0x004c float32 agc_mix_=agc_.mix_   # weight of the previous gain; 1.0 = frozen
+  0x0050 float32 agc_mixSaved_=agc_.mixSaved_
+  0x0054 float32 agc_gain_=agc_.gain_
+  0x0058 float32 agc_target_=agc_.target_   # target mean power (1.0)
+  0x005c float32 agc_power_=agc_.power_   # last measured mean power
+  0x0060 float32 agc_acc_=agc_.acc_   # running sum of squares of the current period
+  0x0064 u32 agc_period_=agc_.period_   # samples per measurement (500)
+  0x0068 u32 agc_count_=agc_.count_   # samples left in the period
+  0x006c align8 pf_align_
+  0x006c ptr-into-heap pf_fir_coef_=pf_.coef_   # borrowed: points into preFilterCoefType1 / 2 / 3 or NULL
+  0x0070 ptr-to-heap pf_fir_hist_=pf_.hist_   # heap block of 139 floats (40 + 99)
+  0x0074 u32 pf_fir_taps_=pf_.taps_
+  0x0078 u32 pf_fir_histLen_=pf_.histLen_
+  0x007c i32 pf_fir_room_=pf_.room_
+  0x0080 i32 pf_codecType_=pf_.codecType_   # index into dataBase (hardware codec type), 0 .. 15
+  0x0084 ptr-into-heap pf_info_=pf_.info_   # V90Phase2Info * (borrowed): info->l2_ is the float[21] the loop selection compares
+  0x0088 ptr-into-heap pf_params_=pf_.params_   # V90Parameters * (borrowed)
+  0x008c i32 pf_filterIdx_=pf_.filterIdx_   # the coefficient set currently loaded (gain index), or the type 3 index - 20
+  0x0090 i32 pf_refLoop_=pf_.refLoop_   # the reference-loop record chosen by autoSelection, -1 = none
+  0x0094 align8 pf_padend_
+  0x0094 align8 rs_align_
+  0x0094 ptr-into-heap rs_vptr_=rs_   # the implicit vptr of the embedded V90Resampler (&rs_)
+  0x0098 ptr-into-heap rs_coef_=rs_.coef_   # polyphase table (rows of taps_): owned heap block (float ctor) or borrowed (pointer ctor, borrowed_ = 1)
+  0x009c ptr-to-heap rs_hist_=rs_.hist_   # heap block of histLen_ floats (NULL if histLen_ == 0 / the allocation failed)
+  0x00a0 double rs_phase_=rs_.phase_
+  0x00a8 float32 rs_pend_=rs_.pend_ 5
+  0x00bc u32 rs_pendCount_=rs_.pendCount_
+  0x00c0 float32 rs_step_=rs_.step_
+  0x00c4 u32 rs_L_=rs_.L_
+  0x00c8 u32 rs_taps_=rs_.taps_
+  0x00cc u32 rs_histLen_=rs_.histLen_
+  0x00d0 u32 rs_wr_=rs_.wr_
+  0x00d4 u32 rs_need_=rs_.need_
+  0x00d8 u32 rs_borrowed_=rs_.borrowed_
+  0x00dc float32 rs_off_=rs_.off_
+  0x00e0 float32 rs_gainA_=rs_.gainA_
+  0x00e4 float32 rs_gainB_=rs_.gainB_
+  0x00e8 float32 rs_errOut_=rs_.errOut_
+  0x00ec float32 rs_f58_=rs_.f58_
+  0x00f0 float32 rs_lastCorr_=rs_.lastCorr_
+  0x00f4 u32 rs_parity_=rs_.parity_
+  0x00f8 unknown-region rs_pad64_=rs_.pad64_ 4   # never touched by any of the 51 functions
+  0x00fc float32 rs_energy_=rs_.energy_
+  0x0100 float32 rs_energyPrev_=rs_.energyPrev_
+  0x0104 float32 rs_bpf_=rs_.bpf_
+  0x0108 float32 rs_bpfPrev_=rs_.bpfPrev_
+  0x010c float32 rs_errAcc_=rs_.errAcc_
+  0x0110 u32 rs_dftN_=rs_.dftN_
+  0x0114 float32 rs_dftMag_=rs_.dftMag_
+  0x0118 float32 rs_dftRe_=rs_.dftRe_
+  0x011c float32 rs_dftIm_=rs_.dftIm_
+  0x0120 u8 rs_dftDone_=rs_.dftDone_
+  0x0121 unknown-region rs_pad8d_=rs_.pad8d_ 3   # padding after the byte flag
+  0x0124 float32 rs_bpfGain_=rs_.bpfGain_
+  0x0128 u32 rs_state_=rs_.state_
+  0x012c u32 rs_stateCount_=rs_.stateCount_
+  0x0130 u32 rs_stateFlag_=rs_.stateFlag_
+  0x0134 ptr-into-heap rs_params_=rs_.params_   # V90Parameters * (borrowed; a harness-owned block)
+  0x0138 ptr-to-heap rs_tHist_=rs_.tHist_   # heap block of tHistLen_ floats
+  0x013c u32 rs_tHistLen_=rs_.tHistLen_
+  0x0140 u32 rs_tHistIdx_=rs_.tHistIdx_
+  0x0144 u32 rs_tCount_=rs_.tCount_
+  0x0148 align8 rs_padend_
+  0x0148 align8 cpow_align_
+  0x0148 ptr-into-heap cpow_tab_=cpow_.tab_   # table of the current radix (inside the V90MappingParams block)
+  0x014c u32 cpow_n_=cpow_.n_
+  0x0150 double cpow_M_=cpow_.M_   # int64_t
+  0x0158 double cpow_A_=cpow_.A_ 7   # int64_t[7]: A_[0] = M - 1, A_[1..6] the quotients
+  0x0190 u32 cpow_r_=cpow_.r_ 6
+  0x01a8 double cpow_D_=cpow_.D_ 6
+  0x01d8 align8 cpow_padend_
+  0x01d8 ptr-to-heap eq_   # V90Equalizer * (heap, 0x150 B): process / restoreEqualizerToFloat / calcMeanErrorStatistics; event_ (+0x64), meanErr_ (+0x80), statMean_ (+0x84), ratio_ (+0x140) are read
+  0x01dc ptr-to-heap p3_   # V90Phase3Demodulator * (heap, 0x42c B)
+  0x01e0 ptr-to-heap p4_   # V90Phase4Demodulator * (heap, 0x351c B)
+  0x01e4 ptr-to-heap dem_   # V90Demapper * (heap, 0x1eb8 B)
+  0x01e8 align8 scr_align_
+  0x01e8 ptr-to-heap scr_buf_=scr_.buf_
+  0x01ec ptr-into-heap scr_head0_=scr_.head0_
+  0x01f0 ptr-into-heap scr_t1_0_=scr_.t1_0_
+  0x01f4 ptr-into-heap scr_end_=scr_.end_
+  0x01f8 ptr-into-heap scr_wr_=scr_.wr_
+  0x01fc ptr-into-heap scr_t1_=scr_.t1_
+  0x0200 ptr-into-heap scr_t2_=scr_.t2_
+  0x0204 u32-ptrslot scr_tail_=scr_.tail_
+  0x0208 align8 scr_padend_
+  0x0208 ptr-to-heap cdes_   # V90ConstellationDesigner * (heap, 0x54 B): process, state_ (+0x48) is written
+  0x020c ptr-to-heap ce_   # V90ConnectionEvaluator * (heap, 0xbc B)
+  0x0210 align8 sv_align_
+  0x0210 ptr-into-heap sv_params_=sv_.params_   # V90Parameters * (borrowed)
+  0x0214 ptr-into-heap sv_psd_=sv_.psd_   # heap Psd (0x10 B on i386, 0x18 on x86-64), dumped field-wise by the harness with the P03 table
+  0x0218 float32 sv_sampleFreq_=sv_.sampleFreq_   # params->spectralVerifierSampleFreq (a float copy: fst)
+  0x021c u32 sv_fftLen_=sv_.fftLen_   # params->spectralVerifierFftLen
+  0x0220 u32 sv_psdLen_=sv_.psdLen_   # params->spectralVerifierPsdLen (samples gathered before one Psd run)
+  0x0224 float32 sv_resolution_=sv_.resolution_   # (float)(sampleFreq / (long double)fftLen): Hz per bin
+  0x0228 ptr-to-heap sv_buf_=sv_.buf_   # heap: psdLen_ floats (the gathered input)
+  0x022c ptr-to-heap sv_spec_=sv_.spec_   # heap: fftLen_ / 2 floats (the Psd output in dB)
+  0x0230 u32 sv_fill_=sv_.fill_   # samples gathered so far
+  0x0234 u32 sv_state_=sv_.state_   # 0 idle, 1 accumulating, 2 spectrum ready
+  0x0238 u32 sv_flag_=sv_.flag_   # checkSpecialSpectralConditions result: 0 none, 1 German ISDN NT1 box, 2 German PBX, 3 severe codec
+  0x023c align8 sv_padend_
+  0x023c ptr-to-heap adid_   # V90AutoDigitalImpDetector * (heap, 0xa9b0 B)
+  0x0240 float32 dilScale_   # written by the DIL-end handler: a copy of adid_ + 0xa94c (a float)
+  0x0244 ptr-to-heap inBuf_   # float[n]: the FloatFIR / Agc output (n = C1 arg 1, the largest call)
+  0x0248 ptr-to-heap rsBuf_   # float[3n]: the V90Resampler output
+  0x024c u32 rsCnt_   # its count (the `unsigned &` of V90Resampler::resample; the equalizer input count)
+  0x0250 ptr-to-heap decBuf_   # short[2n]: the equalizer decisions
+  0x0254 ptr-to-heap eqBuf_   # float[2n]: the equalized samples
+  0x0258 u32 eqCnt_   # the equalizer output count (`unsigned &` of V90Equalizer::process); added to framePos_
+  0x025c ptr-to-heap byteBuf_   # uchar[8n]: V90Demapper::process output, V90Descrambler::process input
+  0x0260 u32 framePos_   # (framePos_ + eqCnt_) % 6 after every call: the position in the 6-symbol frame
+  0x0264 u32 cnt23_   # incremented per call while state_ == 0x23
+  0x0268 u32 cnt1f_   # incremented per call while state_ is 0x1f .. 0x21
+  0x026c u32 cnt26_   # incremented per call while state_ == 0x26
+  0x0270 u32 flag270_   # set to 1 by the Dil-study / TRN1d handlers (read by exitPhase3 / P44)
+  0x0274 float32 designErr_   # a copy of the equalizer error statistic (eq_->statMean_) used as the ConstellationDesigner argument
+  0x0278 u32 w278_=timingHistoryEval_   # zero in the constructor; written by enterDataSteadyState / reset only
+  0x027c u32 quietCnt_   # symbols while the Agc power stays below params energyDropDetectorThreshold (remote retrain detector)
+  0x0280 u8 designed_   # 1 after V90ConstellationDesigner::process ran
+  0x0281 unknown-region pad281_ 3   # never touched
+  0x0284 u32 errPrintCnt_   # symbols since the last error-energy print
+  0x0288 u32 errPrintPeriod_   # params errorEnergyPrintPeriodPhase4 (set at the phase entry from +0x268)
+  0x028c u32 tmPrintCnt_   # symbols since the last timing-offset print
+  0x0290 u32 tmPrintPeriod_   # params timingOffsetPrintPeriodPhase4 (+0x27c)
+  0x0294 u32 retrainOk_   # 0: a retrain request becomes a fall-back to V.34 (0x1f), else a retrain (0x21); reset sets it

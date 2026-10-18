@@ -1,0 +1,405 @@
+# V01 layout (32-bit, measured from the blob): the SHARED V.34 module object `tagV34Object` (0xac4c B: VPcmV34Create memsets it) as far as the V.34 chain is ported to named members, plus the two small
+# foreign blocks V01 reads: the dp parameter block P = *(obj+0xac3c) (the same blob object as P07's `_tagModemParameters`; V01 names five words inside P07's unknown regions, +0x30 / +0x34 / +0x60 /
+# +0x64 / +0x68) and the K56Flex handle *(obj+0xac18) (K56FLEX_Create: UNINITIALISED sysdep_malloc(0x14)).  V01 touches 33 members of the object (V34SetINFO1aBits + VPcmV34InitiateRetrain; the
+# resetRetrainDetector record at +0xac1c is flattened, rd<off>_ = retrain_.<member>).  EVERYTHING ELSE is a byte region `unk<off>_`: V02 .. V07 EXTEND this file and src/v34/v34_object.h by SPLITTING
+# an unknown region (replace `unk<off>_ <n>` by the named members + the shorter remaining regions in BOTH files; tools/layout_gen.py refuses a layout whose offsets / size are not the i386 ones).
+# Earlier V.34 chunks (tiers 2 - 10a) still reach the object by byte offsets and 32-bit pointer slots; on x86-64 only the members named here move (the three pointer slots add 4 bytes each).
+# member_map-funcs: tagV34Object = ^(VPcmV34Create|V34SetINFO1aBits|VPcmV34InitiateRetrain|v90Phase34|k56FlexPhase34|v90RateReneg|v90RateRenegSilence|V34GiveINFO1dBits|indicateJaTransmission|VPcmV34GetCurrentRxBitRate|VPcmV34InitMOH|VPcmV34SetMinMaxBitRates|VPcmV34SetDelays|VPcmV34GetVisualDiagnostics|VPcmV34GetDiagnostics|datapumpv34|VPcmV34Progress)(\(.*\))?$
+# member_map-funcs: _tagModemParameters deref=0xac3c = ^(VPcmV34Create|V34SetINFO1aBits|VPcmV34InitiateRetrain|v90Phase34|v90RateRenegSilence|V34GiveINFO1dBits|VPcmV34InitMOH|VPcmV34SetMinMaxBitRates|VPcmV34SetDelays|VPcmV34Progress)(\(.*\))?$
+# member_map-funcs: K56FlexHandle deref=0xac18 = ^(VPcmV34Create|V34SetINFO1aBits|VPcmV34InitiateRetrain|k56FlexPhase34|indicateJaTransmission|VPcmV34GetCurrentRxBitRate|VPcmV34SetMinMaxBitRates|VPcmV34GetVisualDiagnostics|VPcmV34Progress)(\(.*\))?$
+# regenerate: tools/layout_gen.py layouts/v34/v01.layout --chunk v01 --out-port src/v34/v34_object_layout.inc --port-header v34/v34_object.h
+class tagV34Object size 0xac4c cxx V01_tagV34Object mirror V34Obj
+  0x0000 i32 mode_    # V.34 modem mode: 1 / 2 = the V.90 / V.92 data modes (unsigned (mode - 1) < 2), 2 compared by InitiateRetrain, cleared by it
+  0x0004 i32 state_    # VPcmV34Main state (v34handshakinit stores 6 / 7)
+  0x0008 i32 w8_    # V04: INFODONE TONE_AB: 0x30 selects the echo start count 0x1e (else 0x96)
+  0x000c u32 w0c_    # V06: VPcmV34Create clears it (obj+4+8)
+  0x0010 u32 w10_    # V06: VPcmV34Create clears it (obj+4+0xc)
+  0x0014 u32 rxWords_ 64    # V07: the 16-bit data words (bit 0 first) the handshake queues for the DTE side; VPcmV34Progress unpacks w114_ of them into the output bit array (a4) and clears w114_
+  0x0114 u32 w114_=rxWordCnt_    # V06: obj+4+0x110, cleared by VPcmV34Create
+  0x0118 u32 txWords_ 64    # V07: the 16-bit words VPcmV34Progress packs from the input bit array (a6); consumed in [w21c_ (head), w218_ (tail))
+  0x0218 u32 w218_=txTail_    # V06: obj+4+0x214, cleared by VPcmV34Create
+  0x021c u32 w21c_=txHead_    # V06: obj+4+0x218, cleared by VPcmV34Create
+  0x0220 i32 minRateIdx_    # P->minRate_ / 2400, clamped to 14 by InitiateRetrain
+  0x0224 i32 maxRateIdx_    # P->maxRate_ / 2400, raised to minRateIdx_, clamped to 14
+  0x0228 i32 w228_    # V04: obj+4+0x224, stored with (short) waa98_ on the DATAXMIT entry
+  0x022c i32 w22c_    # V04: obj+4+0x228, the same value
+  0x0230 i32 minSigLevel_    # V34DisconnectThreshTable[(P->level_ + 0x30) > 7 ? 3 : ...]
+  0x0234 i32 w234_    # cleared after the minSigLevel print
+  0x0238 i32 w238_=sampleTime_    # V04: obj+4+0x234 (copied to w248_ on the DATAXMIT entry)
+  0x023c u32 w23c_=deadline_    # V04: obj+4+0x238: the status tail compares w238_ > w23c_ (unsigned) for the code 8
+  0x0240 i32 w240_    # V04: obj+4+0x23c: INFODONE (SILENCE) proceeds only when > 0x240 (signed)
+  0x0244 u32 w244_=trainStartTime_    # V07: obj+4+0x240: the CAS-mask window start compared with w238_ by the mode-0 post-processing
+  0x0248 i32 w248_=dataStartTime_    # V04: obj+4+0x244
+  0x024c i32 pcmMode_    # V.PCM / V.90 mode word (0 = plain V.34, 1 = V.90 retrain requested, 2 = after INFO1a, 3 / 0xb / 0xf set by the indications)
+  0x0250 i32 k56Mode_    # K56Flex mode word (2 = enabled by the remote)
+  0x0254 u16 w254_    # 10000 + 336 * (short) w35a4_ (set by InitiateRetrain)
+  0x0256 u16 w256_    # cleared by InitiateRetrain
+  0x0258 u32 w258_    # cleared by InitiateRetrain
+  0x025c u16 dmaDelay_    # 0x610 - P->extDelay_ ("V34dmadelay")
+  0x025e u16 w25e_    # V07: the echo-cancelled sample adaptecho / modem_serrint leave (read as int16, output as float)
+  0x0260 u16 w260_    # V07: the truncated input sample handed to adaptecho / modem_serrint
+  0x0262 u16 w262_    # V06: (obj + 4) + 0x25e, set to 1 by VPcmV34Create
+  0x0264 pad64 pad_0264_ 4
+  0x0264 u16 rxW0_    # V04: (obj + 0x264) + 0: the RX front-end sub-object's first word, v34handshak's post-loop gate (signed, > 5)
+  0x0266 unknown-region unk0266_ 266
+  0x0370 pad64 pad_0370_ 12
+  0x0370 unknown-region rxFskBuf_ 8    # V04: (obj + 0x264) + 0x10c: the buffer handed to fskdemodulate / dftupdate (address only)
+  0x0378 unknown-region unk0378_ 10
+  0x0382 u16 rxSig_    # (obj + 0x264) + 0x11e: the RX front-end signature word, 0x89b0 / 0x8990 (-0x7650 / -0x7670) selects the 16-point / 4-point constellation of the V.90 / K56Flex phase-3/4 transmit (V02)
+  0x0384 unknown-region unk0384_ 2
+  0x0386 u16 rxFlags_    # (obj + 0x264) + 0x122: bit 0x400 = Ja / INFO sent, bit 0x10 = tx-gate flag (V02); the high byte (+0x123) is tested by k56FlexPhase34
+  0x0388 u16 w388_    # V05: (obj + 0x264) + 0x124: the idle-time counter datapumpv34 increments (saturating at 0x7530: signed word <= 0x752f)
+  0x038a unknown-region unk038a_ 2
+  0x038c u16 w38c_    # V04: (obj + 0x264) + 0x128: set to 4 by TRNSEG4 (demodulator set-up)
+  0x038e unknown-region unk038e_ 6
+  0x0394 ptr-into-heap rxEnd_    # V04: (obj + 0x264) + 0x130: end pointer of the fskdemodulate buffer (tone_detect's fourth argument)
+  0x0398 u16 rxLevel_    # V04: (obj + 0x264) + 0x134: the receive level compared with minSigLevel_ by the status tail
+  0x039a u16 rxGain_    # V04: (obj + 0x264) + 0x136: rx->gain (printed by RX_PHASE3_CALL)
+  0x039c unknown-region unk039c_ 2
+  0x039e u16 w39e_    # V04: (obj + 0x264) + 0x13a: 0x2000 stored by TRNSEG4
+  0x03a0 unknown-region unk03a0_ 98
+  0x0402 u16 w402_    # V04: RX_PHASE2_CALL: the retrain-detector flag (set once the tone is absent)
+  0x0404 unknown-region unk0404_ 12
+  0x0410 u16 w410_    # V04: TRNSEG4 / V34SetupDemodulator: per-baud receive parameter
+  0x0412 u16 w412_    # V04: TRNSEG4: per-baud receive parameter
+  0x0414 u16 w414_    # V04: TRNSEG4: per-baud receive parameter
+  0x0416 unknown-region unk0416_ 2
+  0x0418 ptr-into-heap hsineTab_    # V04: TRNSEG4: the carrier table (hsine1600 .. hsine2400) chosen from the carrier frequency
+  0x041c unknown-region unk041c_ 2
+  0x041e u16 w41e_=hsineLen_    # V04: TRNSEG4: the table length matching hsineTab_
+  0x0420 unknown-region unk0420_ 2
+  0x0422 u16 w422_    # V04: TRNSEG4: per-baud receive parameter
+  0x0424 unknown-region unk0424_ 16
+  0x0434 u16 resOffs_    # VPcmV34GetVisualDiagnostics case 4 (K56Flex getResamplerOffset peer): the short returned as out[0] (V03)
+  0x0436 u16 w436_    # V04: (obj + 0x264) + 0x1d2: 3 * waa96_ (status tail, data mode)
+  0x0438 unknown-region unk0438_ 4
+  0x043c i32 resPhase_    # VPcmV34GetVisualDiagnostics case 3: the int returned as out[0] (V03)
+  0x0440 unknown-region unk0440_ 60
+  0x047c pad64 pad_047c_ 8
+  0x047c u16 w047c_    # X3: split out of unk0440_: V04 RECEIVE stores 0x4000 here; a raw offset from unk0440_ would cross p0448_ on x86-64
+  0x047e u16 w47e_=equErr_    # (obj + 0x264) + 0x21a: divisor of the SNR estimate of VPcmV34GetDiagnostics, tested with a signed 16-bit compare (V03)
+  0x0480 u16 w480_    # V04: (obj + 0x264) + 0x21c, cleared on the DATAXMIT entry
+  0x0482 unknown-region unk0482_ 2
+  0x0484 u32 w484_    # V04: (obj + 0x264) + 0x220, cleared on the DATAXMIT entry
+  0x0488 unknown-region unk0488_ 20
+  0x049c u32 w49c_    # V06: (obj + 0x264) + 0x238, cleared by VPcmV34Create
+  0x04a0 unknown-region unk04a0_ 12
+  0x04ac i32 w4ac_    # (obj + 0x264) + 0x248: the dividend of that estimate (V03)
+  0x04b0 unknown-region unk04b0_ 6
+  0x04b6 u16 w4b6_=retrainErrThr_    # V05: (obj + 0x264) + 0x252: threshold of the datapump run counter w4bc_ (signed compare with w47e_)
+  0x04b8 u16 w4b8_=rrnDownErrThr_    # V05: (obj + 0x264) + 0x254: threshold of the counter w4be_
+  0x04ba u16 w4ba_=rrnUpErrThr_    # V05: (obj + 0x264) + 0x256: threshold of the counter w4c0_
+  0x04bc u16 w4bc_=retrainCnt_    # (obj + 0x264) + 0x258 .. +0x25c: three words cleared by every retrain / rate-renegotiation entry
+  0x04be u16 w4be_=rrnDownCnt_    # 
+  0x04c0 u16 w4c0_=rrnUpCnt_    # 
+  0x04c2 u16 w4c2_=rnegReason_    # V05: (obj + 0x264) + 0x25e: the rate-renegotiation reason (1 = remote RRN detected, 2 = DOWN / large error, 3 = UP / small error)
+  0x04c4 u16 w4c4_=rnegRateIdx_    # V05: (obj + 0x264) + 0x260: a copy of waa98_ stored by every rate renegotiation
+  0x04c6 u16 rxGainEst_    # V04: (obj + 0x264) + 0x262: the gain estimate printed by SILENCERETRAIN
+  0x04c8 u16 w4c8_=rxGainSaved_    # V04: (obj + 0x264) + 0x264: a copy of the receive gain (RX_PHASE1_ANS / RX_PHASE1_CALL)
+  0x04ca unknown-region unk04ca_ 678
+  0x0770 pad64 pad_0770_ 20
+  0x0770 u16 eqRe_ 80    # (obj + 0x264) + 0x50c: the 80 real parts of the V.34 linear equalizer taps (VPcmV34GetVisualDiagnostics case 1, doubled) (V03)
+  0x0810 u16 eqIm_ 80    # (obj + 0x264) + 0x5ac: the 80 imaginary parts (V03)
+  0x08b0 unknown-region unk08b0_ 1436
+  0x0e4c pad64 pad_0e4c_ 20
+  0x0e4c u16 wE4c_    # V04: TXPOST DATAXMIT: zero selects the status code 3, else 4
+  0x0e4e unknown-region unk0e4e_ 2
+  0x0e50 pad64 pad_0e50_ 4    # RS1 / M4: the x86-64 tail padding of block B (V34Obj aln0e50_) belongs HERE (it was pad_1450_ before modTx_)
+  0x0e50 unknown-region unk0e50_ 52
+  0x0e84 u16 precoef_ 12    # RS1 / M4: the 12 precoder coefficients (blob: TRNSEG4A of v34handshak stores obj+0xe84.., v34modeminit zeroes them, initdigital passes obj+0xe84 to initV34)
+  0x0e9c unknown-region unk0e9c_ 1460
+  0x1450 unknown-region modTx_ 8    # V04: start of the transmit MODULATOR sub-object (V34SetupModulator's first argument)
+  0x1458 unknown-region unk1458_ 3520
+  0x2218 pad64 pad_2218_ 20
+  0x2218 i32 w2218_=runMode_    # 5 / 2: set by the retrain entries
+  0x221c u16 txIdx_    # V04: (obj + 0x221c) + 0: the sample index of v34handshak's transmit loop (signed 16-bit compare with blkLen_)
+  0x221e unknown-region unk221e_ 930
+  0x25c0 pad64 pad_25c0_ 12
+  0x25c0 u16 txCnt_    # (obj + 0x221c) + 0x3a4: the phase-3/4 transmit symbol counter
+  0x25c2 u16 txFlags_    # (+0x3a6) bit 4 = tx buffer backward clear (v90RateRenegSilence)
+  0x25c4 unknown-region unk25c4_ 2
+  0x25c6 u16 txPrev_    # (+0x3aa) previous scrambler bits
+  0x25c8 u16 txBits_    # (+0x3ac) bits buffer: getV90CpBits / getV90JaBits / getK56FlexJaBits / MpBits write it, V34scrambler's result is stored here; read as signed 16
+  0x25ca unknown-region unk25ca_ 2
+  0x25cc u32 scrState_    # (+0x3b0) scrambler state handed to V34scrambler (obj + 0x25cc)
+  0x25d0 u32 txPoint_    # (+0x3b4) constellation point handed to txmit (also written as two u16 halves 0 / 0)
+  0x25d4 u16 txGain_    # V04: (obj + 0x221c) + 0x3b8: probe signal gain (TX_L1)
+  0x25d6 u16 k56Word_    # (+0x3ba) the K56Flex JA word sent as four dibits (0x899f)
+  0x25d8 u16 symCnt_    # V04: (obj + 0x221c) + 0x3bc: J sequence symbol counter (JTXMIT: > 0x80 allows the J1TXMIT switch)
+  0x25da u16 w25da_    # V04: (obj + 0x221c) + 0x3be: JTXMIT state flag (2 = J1TXMIT may follow)
+  0x25dc u16 w25dc_    # cleared by the "short phase 2" branch of V34SetINFO1aBits
+  0x25de unknown-region unk25de_ 1162
+  0x2a68 pad64 pad_2a68_ 20
+  0x2a68 unknown-region unk2a68_ 56    # X3: split out of unk25de_: the transmitter filter coefficient words copyCoefs (V04 RECEIVE) writes
+  0x2aa0 u16 blkLen_    # V04: the number of samples per call (the transmit loop bound)
+  0x2aa2 u16 k56Idx_    # dibit index of the K56Flex JA word (k56FlexPhase34 state 3), cleared when the JA word has been received
+  0x2aa4 u16 constCnt_    # number of constellation points in constPts_; VPcmV34GetVisualDiagnostics case 0 clears it after reading (V03)
+  0x2aa6 u16 w2aa6_    # V06: cleared by VPcmV34Create
+  0x2aa8 unknown-region constPts_ 2720    # constellation points: 1360 int16 (re, im) pairs of 16-bit values (V03)
+  0x3548 ptr-into-heap ctx_    # the VPcmFloModem (0x7f68 B) of this V.34 module
+  0x354c u32 w354c_=echoAdaptCnt_    # V04: cleared by TXMD when echo adaptation is enabled
+  0x3550 u16 w3550_=echoAlphaNear_    # V04: cleared with w354c_
+  0x3552 u16 w3552_=echoAlphaFar_    # V04: cleared with w354c_
+  0x3554 u32 w3554_=echoThresh_    # V06: 0x7d0 stored by VPcmV34Create
+  0x3558 u32 w3558_=echoK2_    # V06: 0x7fdf stored by VPcmV34Create
+  0x355c u32 w355c_=echoBeta_    # V06: 2 stored by VPcmV34Create
+  0x3560 u32 w3560_=echoEnergy_    # V04: cleared by the echo adaptation start (TRNSEG4)
+  0x3564 unknown-region toneDet_ 6    # V04: the tone detector record (address handed to tone_detect / detectorinit); +6 is a u16 flag
+  0x356a pad64 pad_356a_ 4
+  0x356a u16 toneDetF6_    # V04: MOH_TONE: set to 1 after detectorinit
+  0x356c unknown-region unk356c_ 28
+  0x3588 u16 w3588_    # V04: TX_PHASE2 error-recovery gate
+  0x358a u16 w358a_    # V04: set to 1 by the TX_PHASE2 error recovery
+  0x358c u16 w358c_=toneSel_    # V04: bit 0 selects the TONE_AB point (vect4[2 * (w358c_ & 1)])
+  0x358e u16 w358e_    # V04: pass counter of PPSEG / cleared by SBARSEG's tail
+  0x3590 u16 w3590_    # V04: XMITMP: the next position at which the MP queue is stretched by one bit (+0x11 per hit; 0x22 after a restart)
+  0x3592 u16 mst_    # V04: the handshake MICROSTATE (second state variable, StateName index)
+  0x3594 u16 rxState_    # V04: the handshake RECEIVE state (StateName index)
+  0x3596 u16 w3596_=txState_    # 0x45 ('E') stored after the MP / CP exchange
+  0x3598 u16 w3598_    # V04: XMITMP: set to 1 once initdigital ran for the EXMIT hand-over
+  0x359a u16 w359a_    # set to 1 by InitiateRetrain when the max rate index is 1
+  0x359c u16 modeChar_    # 0x65 / 0x66 ("e" / "f": the two V.34 symbol-rate families / call roles); compared as a 16-bit word
+  0x359e u16 w359e_    # V04: XMITMP: MP repetition counter (signed compares with 1 and 3)
+  0x35a0 u16 w35a0_    # V04: TX_L1 (microstate): cleared
+  0x35a2 u16 w35a2_=rxMdLen_    # V04: JTXMIT (role 0x66) gate
+  0x35a4 u16 w35a4_=txMdMs_    # the value INFO1a encodes (movswl)
+  0x35a6 u16 w35a6_=txMdSymbols_    # V04: TXMD / SBARSEG: the MD length in symbols (w35a4_ * 0x53)
+  0x35a8 u32 w35a8_=bulkRd_    # V06: cleared by VPcmV34Create
+  0x35ac u32 w35ac_=bulkWr_    # V06: cleared by VPcmV34Create
+  0x35b0 ptr-into-heap w35b0_=bulkBase_    # V06: VPcmV34Create stores the address of its own +0x35b8 (the block that follows)
+  0x35b4 u32 w35b4_=bulkLen_    # V06: 0x2580 stored by VPcmV34Create
+  0x35b8 unknown-region unk35b8_ 19200
+  0x80b8 pad64 pad_80b8_ 4
+  0x80b8 unknown-region echoNear_ 8    # V04: the near echo canceller report block (address handed to V34EchoReportCoeff)
+  0x80c0 pad64 pad_80c0_ 8
+  0x80c0 ptr-into-heap echoBuf_    # VPcmV34GetVisualDiagnostics case 5 (mode != 2): 16-bit samples read through this pointer (V03)
+  0x80c4 unknown-region unk80c4_ 16
+  0x80d4 pad64 pad_80d4_ 8
+  0x80d4 u32 echoCnt_    # number of samples in echoBuf_ (V03)
+  0x80d8 pad64 pad_80d8_ 4
+  0x80d8 unknown-region unk80d8_ 4192
+  0x9138 unknown-region echoFar_ 8    # V04: the far echo canceller report block (address handed to V34EchoReportCoeff)
+  0x9140 pad64 pad_9140_ 8
+  0x9140 ptr-into-heap pcmBuf_    # VPcmV34GetVisualDiagnostics case 6 (mode 0): 16-bit samples (V03)
+  0x9144 unknown-region unk9144_ 16
+  0x9154 pad64 pad_9154_ 8
+  0x9154 u32 pcmCnt_    # number of samples in pcmBuf_ (V03)
+  0x9158 pad64 pad_9158_ 4
+  0x9158 unknown-region unk9158_ 4324
+  0xa23c u16 echoOn_    # echo canceller enabled (set to 1 by InitiateRetrain for requested mode 0x22)
+  0xa23e unknown-region unka23e_ 6
+  0xa244 i32 echoMid_    # V04: TRNSEG4: the symbol count of the echo adaptation mid point (txCnt_ == echoMid_ / 2 reports it)
+  0xa248 u16 wa248_    # V06: cleared by VPcmV34Create
+  0xa24a unknown-region unka24a_ 1622
+  0xa8a0 u32 dftActive_    # V04: RX_DPSK: non-zero = the DFT retrain-detector branch is active
+  0xa8a4 unknown-region unka8a4_ 168
+  0xa94c pad64 pad_a94c_ 4
+  0xa94c unknown-region i0aUnk00_=info0a_.unk00_ 20    # V04: the INFO0a bit-queue record at +0xa94c (0x30 B; V34SetINFO0aBits fills it, the TX_PHASE2 error recovery re-initialises it)
+  0xa960 u16 i0a14_=info0a_.w14_
+  0xa962 u16 i0a16_=info0a_.w16_
+  0xa964 u16 i0a18_=info0a_.w18_
+  0xa966 u16 i0a1a_=info0a_.w1a_
+  0xa968 u16 i0a1c_=info0a_.w1c_
+  0xa96a u16 i0a1e_=info0a_.w1e_
+  0xa96c u16 i0a20_=info0a_.w20_
+  0xa96e u16 i0a22_=info0a_.w22_
+  0xa970 u32 i0a24_=info0a_.d24_
+  0xa974 u16 i0a28_=info0a_.w28_
+  0xa976 u16 i0a2a_=info0a_.w2a_
+  0xa978 u32 i0a2c_=info0a_.d2c_
+  0xa97c unknown-region i0dUnk00_=info0d_.unk00_ 20    # V04: the INFO0d bit-queue record at +0xa97c (0x30 B; bitQ2_ points at it; MOH_TONE initialises it)
+  0xa990 u16 i0d14_=info0d_.w14_
+  0xa992 u16 i0d16_=info0d_.w16_
+  0xa994 u16 i0d18_=info0d_.w18_
+  0xa996 u16 i0d1a_=info0d_.w1a_
+  0xa998 u16 i0d1c_=info0d_.w1c_
+  0xa99a u16 i0d1e_=info0d_.w1e_
+  0xa99c u16 i0d20_=info0d_.w20_
+  0xa99e u16 i0d22_=info0d_.w22_
+  0xa9a0 u32 i0d24_=info0d_.d24_
+  0xa9a4 u16 i0d28_=info0d_.w28_
+  0xa9a6 u16 i0d2a_=info0d_.w2a_
+  0xa9a8 u32 i0d2c_=info0d_.d2c_
+  0xa9ac unknown-region i1aUnk00_=info1a_.unk00_ 20    # V04: the INFO1a bit-queue record at +0xa9ac (0x30 B; TX_L1 (microstate) builds it with V34SetINFO1aBits and re-arms it)
+  0xa9c0 u16 i1a14_=info1a_.w14_
+  0xa9c2 u16 i1a16_=info1a_.w16_
+  0xa9c4 u16 i1a18_=info1a_.w18_
+  0xa9c6 u16 i1a1a_=info1a_.w1a_
+  0xa9c8 u16 i1a1c_=info1a_.w1c_
+  0xa9ca u16 i1a1e_=info1a_.w1e_
+  0xa9cc u16 i1a20_=info1a_.w20_
+  0xa9ce u16 i1a22_=info1a_.w22_
+  0xa9d0 u32 i1a24_=info1a_.d24_
+  0xa9d4 u16 i1a28_=info1a_.w28_
+  0xa9d6 u16 i1a2a_=info1a_.w2a_
+  0xa9d8 u32 i1a2c_=info1a_.d2c_
+  0xa9dc unknown-region i1cUnk00_=info1c_.unk00_ 20    # V04: the INFO1c bit-queue record at +0xa9dc (0x30 B; its first words are the record handed to settxlevel; DET_AB points bitQ2_ at it)
+  0xa9f0 u16 i1c14_=info1c_.w14_
+  0xa9f2 u16 i1c16_=info1c_.w16_
+  0xa9f4 u16 i1c18_=info1c_.w18_
+  0xa9f6 u16 i1c1a_=info1c_.w1a_
+  0xa9f8 u16 i1c1c_=info1c_.w1c_
+  0xa9fa u16 i1c1e_=info1c_.w1e_
+  0xa9fc u16 i1c20_=info1c_.w20_
+  0xa9fe u16 i1c22_=info1c_.w22_
+  0xaa00 u32 i1c24_=info1c_.d24_
+  0xaa04 u16 i1c28_=info1c_.w28_
+  0xaa06 u16 i1c2a_=info1c_.w2a_
+  0xaa08 u32 i1c2c_=info1c_.d2c_
+  0xaa0c unknown-region q2Unk00_=q2_.unk00_ 20    # V04: a third bit-queue record at +0xaa0c (0x30 B; cleared by TRNSEG4)
+  0xaa20 u16 q214_=q2_.w14_
+  0xaa22 u16 q216_=q2_.w16_
+  0xaa24 u16 q218_=q2_.w18_
+  0xaa26 u16 q21a_=q2_.w1a_
+  0xaa28 u16 q21c_=q2_.w1c_
+  0xaa2a u16 q21e_=q2_.w1e_
+  0xaa2c u16 q220_=q2_.w20_
+  0xaa2e u16 q222_=q2_.w22_
+  0xaa30 u32 q224_=q2_.d24_
+  0xaa34 u16 q228_=q2_.w28_
+  0xaa36 u16 q22a_=q2_.w2a_
+  0xaa38 u32 q22c_=q2_.d2c_
+  0xaa3c unknown-region mpUnk00_=mpQ_.unk00_ 20    # V04: the MP bit-queue record at +0xaa3c (0x30 B; bitQ_ points at it during XMITMP; word 0 bit 0 = the far end MP was seen)
+  0xaa50 u16 mp14_=mpQ_.w14_
+  0xaa52 u16 mp16_=mpQ_.w16_
+  0xaa54 u16 mp18_=mpQ_.w18_
+  0xaa56 u16 mp1a_=mpQ_.w1a_
+  0xaa58 u16 mp1c_=mpQ_.w1c_
+  0xaa5a u16 mp1e_=mpQ_.w1e_
+  0xaa5c u16 mp20_=mpQ_.w20_
+  0xaa5e u16 mp22_=mpQ_.w22_
+  0xaa60 u32 mp24_=mpQ_.d24_
+  0xaa64 u16 mp28_=mpQ_.w28_
+  0xaa66 u16 mp2a_=mpQ_.w2a_
+  0xaa68 u32 mp2c_=mpQ_.d2c_
+  0xaa6c ptr-into-heap bitQ_    # V04: pointer to the active bit-queue record (set to &info0a_ by SILENCEINFO)
+  0xaa70 ptr-into-heap bitQ2_    # V04: pointer to the second bit-queue record (INFO0d)
+  0xaa74 i32 waa74_    # V07: mode 8 (hold wait): the samples waited so far, compared (signed) with wabdc_
+  0xaa78 u16 waa78_=hsSymCnt_    # V04: the echo-freeze countdown of JaTXMIT / K56JaTXMIT
+  0xaa7a u16 wAa7a_=count3_    # V04: cleared on every SILENCE / SILENCEINFO / SILENCERETRAIN call
+  0xaa7c u16 filtDelay_    # ((P->delay_ + 2) >> 2) + 0x22 ("V34 filtdelay")
+  0xaa7e u16 waa7e_=bulkDelay_    # copied to two diagnostics words by VPcmV34GetDiagnostics (V03)
+  0xaa80 u16 waa80_    # V04: TRNSEG4: set to 1
+  0xaa82 unknown-region unkaa82_ 2
+  0xaa84 u16 baud_    # symbol rate (0xc80 = 3200 in the short phase 2 branch)
+  0xaa86 u16 period_    # printed as "period = %d" (movswl)
+  0xaa88 u16 waa88_=txRateIdx_    # a rate index: * 2400 = a bit rate (VPcmV34GetDiagnostics) (V03)
+  0xaa8a u16 preemp_    # pre-emphasis index
+  0xaa8c unknown-region unkaa8c_ 4
+  0xaa90 ptr-into-heap scalePtr_    # V04: TX_L1 (microstate): the scaling table of the baud rate (scale2400 .. scale3429)
+  0xaa94 u16 carrier_    # carrier frequency (0x725 = 1829 in the short phase 2 branch)
+  0xaa96 u16 waa96_=rxBaud_    # VPcmV34GetDiagnostics: copied to diagnostics +0xb4 (V03)
+  0xaa98 u16 waa98_=rxRateIdx_    # a rate index: * 2400 = the receive bit rate (VPcmV34GetCurrentRxBitRate, VPcmV34GetDiagnostics) (V03)
+  0xaa9a unknown-region unkaa9a_ 14
+  0xaaa8 u16 waaa8_=rxCarrier_    # VPcmV34GetDiagnostics: copied to diagnostics +0xbc (V03)
+  0xaaaa unknown-region unkaaaa_ 2
+  0xaaac ptr-into-heap scaleTab_    # V04: TX_L1 (microstate): a copy of scalePtr_ (the table TRNSEG4A reads)
+  0xaab0 ptr-into-heap detTab_    # V04: TRNSEG4: the table handed to detectorinit
+  0xaab4 unknown-region unkaab4_ 28
+  0xaad0 unknown-region fskState_ 8    # V04: the state record handed to fskdemodulate (address only)
+  0xaad8 unknown-region unkaad8_ 4
+  0xaadc u16 waadc_=fskCounter_    # V04: MOH_TONE: cleared
+  0xaade u16 waade_=fskNextPoint_    # V04: DET_AB: set to 6
+  0xaae0 u16 wAae0_=v21BitCnt_    # V04: RX_DPSK micro state word (cleared by the TX_PHASE2 error recovery)
+  0xaae2 u16 wAae2_=v21RxBuf_    # V04: INFO0 receive flags (0xffff when armed; & 0xf == 0xf: complete)
+  0xaae4 unknown-region unkaae4_ 202
+  0xabae u16 wAbae_ 10    # V04: ten words cleared by the TX_PHASE2 error recovery
+  0xabc2 u16 wAbc2_    # V04: cleared by the TX_PHASE2 error recovery
+  0xabc4 u16 wabc4_    # V06: cleared by VPcmV34Create
+  0xabc6 u16 wabc6_    # V06: cleared by VPcmV34Create, set to 1 by it in the V.92 session mode
+  0xabc8 u16 wabc8_=info1dPending_    # V34GiveINFO1dBits: nonzero = the INFO1d request is in the INFO exchange (V03)
+  0xabca u16 wabca_    # cleared by InitiateRetrain (isShort input of tier 2)
+  0xabcc u16 shortPhase2_    # isShort (tier 2); cleared by InitiateRetrain
+  0xabce u16 pair0_    # 2-bit values copied from the INFO1a bits 7:6 / 5:4 / 3:2 (tier 2); only the low two bits are tested here
+  0xabd0 u16 pair1_    # 
+  0xabd2 u16 pair2_    # 
+  0xabd4 u16 wabd4_    # V06: cleared by VPcmV34Create; V.92 session mode: the V92Phase2Info byte +0x17
+  0xabd6 unknown-region unkabd6_ 2
+  0xabd8 u32 mohD8_    # cleared by VPcmV34InitMOH (V03)
+  0xabdc u32 wabdc_    # V06: cleared by VPcmV34Create
+  0xabe0 u16 mohE0_    # cleared by VPcmV34InitMOH
+  0xabe2 u16 mohE2_    # cleared by VPcmV34InitMOH
+  0xabe4 u16 mohE4_    # cleared by VPcmV34InitMOH
+  0xabe6 u16 mohE6_    # cleared by VPcmV34InitMOH
+  0xabe8 u8 mohE8_    # V04: SILENCERETRAIN: non-zero selects the MOH_TONE microstate
+  0xabe9 u8 mohE9_    # VPcmV34InitMOH argument 2 (byte)
+  0xabea unknown-region unkabea_ 2
+  0xabec u32 mohEC_    # VPcmV34InitMOH argument 1
+  0xabf0 u32 mohF0_    # VPcmV34InitMOH argument 1 (0 when it is 1)
+  0xabf4 u32 mohF4_    # set to 5 by VPcmV34InitMOH
+  0xabf8 u8 mohF8_    # V04: MOH_TONE_DROP: armed by the first tone-detect hit
+  0xabf9 u8 mohF9_    # VPcmV34InitMOH argument 3 (byte; 0 when argument 1 is 1)
+  0xabfa u8 mohFA_    # VPcmV34InitMOH argument 2 != 0
+  0xabfb unknown-region unkabfb_ 1
+  0xabfc u16 wabfc_    # V04: MOH_TONE: the symbol count limit of the tone wait (signed 16-bit compare)
+  0xabfe u8 b_abfe_    # set to 1 by v90Phase34 when the "tx buffer backward clear" parameter bit is set
+  0xabff u8 wAbff_    # V04: INFODONE (SILENCE) proceeds only when this signed byte is > 0
+  0xac00 u8 b_ac00_    # set to 1 by InitiateRetrain for mode 0x5a when mode_ == 2
+  0xac01 unknown-region unkac01_ 1
+  0xac02 u16 wac02_=prevBulkDelay_    # V04: RX_PHASE1_ANS: the previous session bulk delay (short phase 2)
+  0xac04 u32 dgC04_    # VPcmV34GetDiagnostics: copied to diagnostics +0xc0 (V03)
+  0xac08 u32 dgC08_    # copied to diagnostics +0xc4
+  0xac0c u16 dgC0c_    # diagnostics +0x228 (-1 when 0)
+  0xac0e u16 dgC0e_    # added to dgC10_ -> diagnostics +0xec
+  0xac10 u16 dgC10_
+  0xac12 u16 dgC12_    # diagnostics +0xe8 / +0xf0 / +0x100
+  0xac14 u16 dgC14_    # diagnostics +0xf4
+  0xac16 u8 b_ac16_    # V06: cleared by VPcmV34Create
+  0xac17 u8 b_ac17_    # V06: cleared by VPcmV34Create
+  0xac18 ptr-into-heap k56_    # the K56Flex modem handle (K56FLEX_Create: uninitialised sysdep_malloc(0x14))
+  0xac1c u16 rd0_=retrain_.w0_
+  0xac1e u16 rd2_=retrain_.w2_
+  0xac20 u16 rd4_=retrain_.w4_
+  0xac22 u16 rd6_=retrain_.w6_
+  0xac24 u32 rd8_=retrain_.w8_
+  0xac28 u16 rdc_=retrain_.wc_
+  0xac2a u16 rde_=retrain_.we_
+  0xac2c u16 rd10_=retrain_.w10_
+  0xac2e unknown-region retrainPad12_=retrain_.pad12_ 2
+  0xac30 u32 rd14_=retrain_.w14_
+  0xac34 u32 rd18_=retrain_.w18_
+  0xac38 u32 rd1c_=retrain_.w1c_
+  0xac3c ptr-into-heap params_    # P = dp_param_get(): the modem parameter block
+  0xac40 u32 wac40_    # V07: requestOutputSampleClear record: 1
+  0xac44 u32 wac44_    # V07: 2 * n (the number of samples asked clear)
+  0xac48 u32 wac48_    # V07: 0
+
+# the dp parameter block (src/core/dp_params.h _tagModemParameters, 0x88 B; this mirror is the 0x7c B prefix; `<mirror>=<member>` maps a mirror word to the member of the one flat struct); only the words the V.34 chain reads are named here
+class _tagModemParameters size 0x7c cxx V01_ModemParams mirror V34ModParObj prefix 0x88
+  0x00 u8 flags0_=flags0             # bit 0x10: K56Flex allowed, bit 0x08: V.90 allowed (VPcmV34InitiateRetrain's mode validation)
+  0x01 unknown-region unk01_=flags1 1
+  0x02 u8 flags2_=flags2             # bit 7 (sign bit): V34GiveINFO1dBits does not retrain to V.34 upstream when it is set (V03)
+  0x03 u8 flags3_=flags3             # bit 0x04 cleared by v90RateRenegSilence, bit 4 of the V.90 rate-renegotiation flags
+  0x04 unknown-region unk04_=w4 8
+  0x0c i32 ansLevel_=ansLevel          # V06: printed as the ANSpcm level index by VPcmV34Create
+  0x10 i32 uqtsIdx_=qcIndex           # V06: the Uqts index (VPcmV34Create prints it, hands it to enterChannelVerification as a short)
+  0x14 u32 w14_=txMdTime               # V06: the desired TX MD time: VPcmV34Create stores 24 * it / 10 in wabfc_
+  0x18 unknown-region unk18_=unk18 24
+  0x30 u32 minRate_=minRate           # the rate limits InitiateRetrain hands to the (K56Flex / V.90) constellation designer and divides by 2400
+  0x34 u32 maxRate_=maxRate
+  0x38 u32 upMinRate_=upstreamMinRate         # Z01: vpcm_create stores 4800 (0x12c0; P07: upstreamMinRate)
+  0x3c u32 upMaxRate_=upstreamMaxRate         # Z01: vpcm_create stores 33600 (0x8340; P07: upstreamMaxRate)
+  0x40 unknown-region unk40_=powerReduction 8
+  0x48 u32 connType_=connectionType          # Z01: vpcm_delete copies it to word 0 of the pair modem_get_param(modem, 0xb) returns (P07: connectionType)
+  0x4c u32 regWord_=clockDeviation           # Z01: ... and this one to word 1 (P07: the unnamed word unk4c)
+  0x50 u8 flags50_=flags50            # bit 0x08 set when the sensitive-ISP flag is seen; bit 0x04 = tx buffer backward clear (v90Phase34)
+  0x51 u8 b51_=flags51                # V07: bit 0 set by VPcmV34Progress with the requestOutputSampleClear
+  0x52 unknown-region unk52_=unk52 2
+  0x54 i32 w54_=codecType               # V06: == 0xe selects the entrance filter (VPcmV34Create, mode according to HW)
+  0x58 unknown-region unk58_=w58 8
+  0x60 i32 level_=minLevel             # minimum signal level request
+  0x64 i32 delay_=delay             # initial delay (V34 filtdelay)
+  0x68 i32 extDelay_=extDelay          # external delay (V34dmadelay / echo delay)
+  0x6c u32 w6c_=p2Silence               # V07: the silence added on PHASE2_COMPLETE (printed)
+  0x70 i32 entrFilt_=entranceFilter          # V06: entrance filter mode of VPcmV34Create: -1 = according to the hardware (w54_ == 0xe), 1 = forced enabled, else forced disabled
+  0x74 unknown-region unk74_=unk74 4
+  0x78 u32 w78_=path          # Z01: vpcm_create clears it.  EOS: the class member is `path` (a char * of the dp parameter block, 8 bytes on x86-64); the mirror and the recorded dumps keep the u32 `w78_` (the low 32 bits) so that the size and the log of the 64-bit harness do not move
+
+# the K56Flex handle: K56FLEX_Create = sysdep_malloc(0x14), never initialised (the K56FlexFloModem class has no data members); the V.34 code reads a byte and a word of it
+class K56FlexHandle size 0x14 cxx V01_K56Handle mirror K56HandleObj
+  0x00 u32 word0_             # VPcmV34GetCurrentRxBitRate returns it in mode 3 (V03)
+  0x04 unknown-region unk04_ 4
+  0x08 u8 flag8_
+  0x09 unknown-region unk09_ 3
+  0x0c i32 word_c_
+  0x10 unknown-region unk10_ 4

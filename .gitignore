@@ -1,0 +1,4 @@
+obj32/
+obj64/
+objnative/
+tools/__pycache__/

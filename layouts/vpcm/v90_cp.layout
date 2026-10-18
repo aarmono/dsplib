@@ -1,0 +1,37 @@
+# P10 class layout (32-bit, measured from the blob: ctor / dtor / reset / evaluateInfo / infoToBits / bitsToInfo / evaluateCRC; see porting/decompiled/dp/p09_p10_v90mp_v90cp.txt)
+# regenerate: tools/layout_gen.py layouts/vpcm/v90_cp.layout --chunk p10 --out-port src/vpcm/v90_cp_layout.inc --port-header vpcm/v90_cp.h --inc-banner chunk
+# V90Modem embeds V90CP at +0xdf4: sizeof = 0x3bc0 (the next member of V90Modem is V90Parameters* at +0x49b4 = 0xdf4 + 0x3bc0).
+# The six heap blocks (0x200 bytes = 128 words each) are owned: allocated by the constructor, freed by the destructor.
+class V90CP size 0x3bc0 cxx P10_V90CP mirror CpObj
+  0x00 u32 type_
+  0x04 u32 flagA_
+  0x08 u32 flagB_
+  0x0c u32 flagC_
+  0x10 u8 f10_=drn_
+  0x11 u8 f11_=trellisState_
+  0x12 u8 f12_=extendEu_
+  0x13 u8 f13_=cptFlag_
+  0x14 u32 w14_=prefilterGain_
+  0x18 u32 pair_ 12
+  0x48 u32 cnt_ 4
+  0x58 u16 arrs_ 1536
+  0xc58 u32 hcnt_ 6
+  0xc70 u32 nib_ 6
+  0xc88 ptr-to-heap heap_ 6
+  0xca0 u32 wCa0_
+  0xca4 u32 state_
+  0xca8 u8 b0ca8_
+  0xca9 u8 ones_
+  0xcaa u8 zeros_
+  0xcab unknown-region pad0cab_ 1
+  0xcac u32 widx_
+  0xcb0 u32 count_
+  0xcb4 u32 cursor_
+  0xcb8 u8 bits_ 12000
+  0x3b98 u8 crc_ 16
+  0x3ba8 u32 trn2dD_
+  0x3bac u32 totalLen_
+  0x3bb0 u32 frameLen_
+  0x3bb4 u32 nMp_
+  0x3bb8 u32 nMpNot_
+  0x3bbc i32 supp_

@@ -1,0 +1,30 @@
+# V03 layout (32-bit, measured from the blob): the diagnostics record VPcmV34GetDiagnostics fills (caller-owned buffer, 0x22c B as far as the function reaches: its last store is the word at +0x228).  The first 0x224
+# bytes are P44's TAG_DiagnosticResults (V90Demodulator::getAT_UD, test/vpcm/v90_demodulator.layout; the names there are P44's); this layout names the words the V.34 function itself stores.  EVERYTHING ELSE stays an unknown region: the
+# function does not write it (V90Demodulator::getAT_UD does, in the V.90 / V.92 modes).
+# member_map-funcs: V03_DiagRecord arg=1 = ^(VPcmV34GetDiagnostics)$
+# regenerate: tools/layout_gen.py layouts/vpcm/vpcm_session_wrappers.layout --chunk v03 --out-port src/vpcm/vpcm_session_wrappers_layout.inc --port-header vpcm/vpcm_session_wrappers.h --inc-banner chunk
+class V03_DiagRecord size 0x22c cxx V03_DiagRecord mirror DiagV03Obj
+  0x0000 unknown-region unk0000_ 108
+  0x006c float32 snrDb_    # -12.0f - (float) w25dc_ (or the constant -12.0f in the V.92 mode)
+  0x0070 float32 qcA_    # (float) the number of 6 dB / 1 dB steps of the estimate (plain V.34 mode only)
+  0x0074 float32 qcB_    # the same value again
+  0x0078 unknown-region unk0078_ 8
+  0x0080 i32 dly80_    # (short) waa7e_
+  0x0084 i32 dly84_    # (short) waa7e_
+  0x0088 unknown-region unk0088_ 40
+  0x00b0 i32 baud_    # symbol rate: (short) baud_ (8000 = 0x1f40 in the V.92 mode)
+  0x00b4 i32 wb4_    # (short) waa96_
+  0x00b8 i32 carrier_    # (short) carrier_ (0 in the V.92 mode)
+  0x00bc i32 wbc_    # (short) waaa8_
+  0x00c0 i32 wc0_    # dgC04_
+  0x00c4 i32 wc4_    # dgC08_
+  0x00c8 unknown-region unk00c8_ 32
+  0x00e8 i32 we8_    # (short) dgC12_
+  0x00ec i32 wec_    # (short) dgC0e_ + (short) dgC10_
+  0x00f0 i32 wf0_    # (short) dgC12_
+  0x00f4 i32 wf4_    # (short) dgC14_
+  0x00f8 i32 txRate_    # (short) waa88_ * 2400 (V.92 mode: 0 or a rate from the transmitter's bit count)
+  0x00fc i32 rxRate_    # (short) waa98_ * 2400 (plain V.34 mode only)
+  0x0100 i32 w100_    # (short) dgC12_
+  0x0104 unknown-region unk0104_ 292
+  0x0228 i32 w228_    # (short) dgC0c_, or -1 when it is 0 (also the function's return value)

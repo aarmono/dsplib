@@ -1,0 +1,128 @@
+# P28 layouts (32-bit, measured from the blob: C1 ctors, reset, resetNoSpectral, process, hardDecision, ...; see porting/decompiled/dp/p28_signbits_mapper_demapper.txt)
+# regenerate: tools/layout_gen.py layouts/vpcm/v90_mapper.layout --chunk p28 --out-port src/vpcm/v90_mapper_layout.inc --port-header vpcm/v90_mapper.h --inc-banner chunk
+# Embedded sub-objects are flattened (`name=a.b` gives the member designator of the real class); their own tables are those of P01 / P06 / P21.  `align8` is a zero-size marker (x86-64 only): the next member starts 8-aligned
+# (an embedded sub-object that holds a pointer is 8-aligned there, and so is the member that follows it).
+# V90SignBitsExtractor: embedded in V90Demapper at +0x668 (0x28 bytes).
+class V90SignBitsExtractor size 0x28 cxx P28_V90SignBitsExtractor mirror SbeObj
+  0x00 u32 period_                 # reset arg 1
+  0x04 u32 n_                      # 6 / period_ (0 when period_ == 0): bits per frame
+  0x08 u8 buf_ 6                   # the working frame of process()
+  0x0e unknown-region pad0e_ 2     # never touched
+  0x10 u32 action_                 # reset arg 2; the process() state machine: 0 = first frame, 1 = second frame
+  0x14 unknown-region pad14_ 4     # never touched
+  0x18 u8 sde_state_=sde_.state_   # SerialDifferentialDecoder<uchar>
+  0x19 unknown-region pad19_ 3     # padding before the embedded PDD (never touched)
+  0x1c ptr-to-heap pdd_state_=pdd_.state_   # ParallelDifferentialDecoder<uchar>: heap lanes block (sysdep_malloc(6))
+  0x20 u32 pdd_cap_=pdd_.cap_
+  0x24 u32 pdd_n_=pdd_.n_
+# V90Mapper: the V.90 bits -> symbol mapper (a member of V90BitsToSymbol; 0x704 bytes).
+class V90Mapper size 0x704 cxx P28_V90Mapper mirror MapObj
+  0x000 ptr-into-heap params_      # V90Parameters * (stored last by C1, never read)
+  0x004 u32 w0_                    # V90MappingParams word 0: bits per frame
+  0x008 u32 nbits_                 # w0_ - skip_: the bits ModulusEncoder consumes
+  0x00c u32 skip_                  # 6 - K_: the leading sign bits of a frame
+  0x010 u32 K_                     # reset: mp +0x620
+  0x014 u32 spf_                   # 6 / K_ (0 when K_ == 0)
+  0x018 ptr-to-heap buf_           # heap: 0x50 bytes, the input bit frame
+  0x01c u32 fill_                  # bits in buf_
+  0x020 u32 idx_ 6                 # ModulusEncoder digits
+  0x038 u16 lev_ 6                 # levels picked by the digits
+  0x044 u8 sgn_ 6                  # SerialDifferentialEncoder outputs
+  0x04a u16 sym_ 6                 # signed symbols
+  0x056 u16 levels_ 768            # [6][128]: ulaw2linear / alaw2linear of the code points of every constellation
+  0x656 unknown-region pad656_ 2   # never touched
+  0x658 u32 cnt_ 6                 # mp +0x604
+  0x670 u32 me_m0_=me_.m0_        # ModulusEncoder (embedded)
+  0x674 u32 me_m1_=me_.m1_
+  0x678 u32 me_m2_=me_.m2_
+  0x67c u32 me_m3_=me_.m3_
+  0x680 u32 me_m4_=me_.m4_
+  0x684 u32 me_m5_=me_.m5_
+  0x688 u32 me_m6_=me_.m6_
+  0x68c align8 shalign_            # V90SpectralShaper (embedded, 0x6c bytes; layout of P21)
+  0x68c u32 sh_depth_=shaper_.depth_
+  0x690 u32 sh_arg_=shaper_.arg_
+  0x694 u32 sh_spf_=shaper_.spf_
+  0x698 u8 sh_bitsIn_=shaper_.bitsIn_ 6
+  0x69e u8 sh_bitsDiff_=shaper_.bitsDiff_ 6
+  0x6a4 u8 sh_bitsOut_=shaper_.bitsOut_ 6
+  0x6aa unknown-region sh_pad1e_=shaper_.pad1e_ 2
+  0x6ac u32 sh_state_=shaper_.state_
+  0x6b0 u32 sh_delay_=shaper_.delay_
+  0x6b4 ptr-to-heap sh_histA_=shaper_.histA_
+  0x6b8 ptr-to-heap sh_histB_=shaper_.histB_
+  0x6bc u32 sh_fill_=shaper_.fill_
+  0x6c0 u32 sh_len_=shaper_.len_
+  0x6c4 u8 sh_sde_state_=shaper_.sde_.state_
+  0x6c5 unknown-region sh_pad39_=shaper_.pad39_ 3
+  0x6c8 ptr-to-heap sh_pde_state_=shaper_.pde_.state_
+  0x6cc u32 sh_pde_cap_=shaper_.pde_.cap_
+  0x6d0 u32 sh_pde_n_=shaper_.pde_.n_
+  0x6d4 float32 sh_ssf_c0_=shaper_.ssf_.c0_
+  0x6d8 float32 sh_ssf_c1_=shaper_.ssf_.c1_
+  0x6dc float32 sh_ssf_c2_=shaper_.ssf_.c2_
+  0x6e0 float32 sh_ssf_c3_=shaper_.ssf_.c3_
+  0x6e4 float32 sh_ssf_s0_=shaper_.ssf_.s0_
+  0x6e8 float32 sh_ssf_s1_=shaper_.ssf_.s1_
+  0x6ec float32 sh_ssf_s2_=shaper_.ssf_.s2_
+  0x6f0 float32 sh_ssf_s3_=shaper_.ssf_.s3_
+  0x6f4 u32 sh_ssf_N_=shaper_.ssf_.N_
+  0x6f8 align8 depalign_           # end of the embedded shaper
+  0x6f8 u32 depth_                 # mp +0x624 (the shaper's memory length), 0 when K_ == 0: the symbols still to skip at the start
+  0x6fc u8 sde_state_=sde_.state_   # SerialDifferentialEncoder<uchar>
+  0x6fd unknown-region pad6fd_ 3   # never touched
+  0x700 u32 z700_                  # zeroed by reset / resetNoSpectral, never read
+# V90Demapper: the V.90 symbol -> bits demapper (a member of V90Demodulator; 0x1eb8 bytes).  The V90AutoDigitalImpDetector it reads / writes by pointer (adid_) is the P18 class.
+class V90Demapper size 0x1eb8 cxx P28_V90Demapper mirror DemObj
+  0x0000 ptr-into-heap params_     # V90Parameters * (borrowed): reads +0x36c trn2dDdLength, +0x52c / +0x530 / +0x534 (the error histogram parameters)
+  0x0004 u32 w0_                   # V90MappingParams word 0: bits per frame
+  0x0008 u32 nbits_                # w0_ - skip_: the bits ModulusDecoder produces
+  0x000c u32 skip_                 # 6 - K_
+  0x0010 u32 K_                    # reset: mp +0x620
+  0x0014 u32 spf_                  # 6 / K_ (reset leaves it alone when K_ == 0)
+  0x0018 u32 phase_                # RBS frame position 0 .. 5 (incrementRBSFramePosition, hardDecision)
+  0x001c ptr-to-heap digits_       # heap: 4 * cap_ bytes, the decided constellation digits
+  0x0020 ptr-to-heap bits_         # heap: cap_ bytes, the sign bits of the decisions
+  0x0024 u32 cap_                  # C1 arg 1
+  0x0028 u32 rd_                   # read position in digits_ / bits_
+  0x002c u32 wr_                   # write position
+  0x0030 u16 lev_ 768              # int16 [6][128]: the levels of every constellation (the decision table)
+  0x0630 u32 cnt_ 6                # mp +0x604
+  0x0648 u32 md_m0_=md_.m0_        # ModulusDecoder (embedded)
+  0x064c u32 md_m1_=md_.m1_
+  0x0650 u32 md_m2_=md_.m2_
+  0x0654 u32 md_m3_=md_.m3_
+  0x0658 u32 md_m4_=md_.m4_
+  0x065c u32 md_m5_=md_.m5_
+  0x0660 u32 md_m6_=md_.m6_
+  0x0664 u8 sdd_state_=sdd_.state_ # SerialDifferentialDecoder<uchar>
+  0x0665 unknown-region pad665_ 3  # never touched
+  0x0668 align8 sbealign_          # V90SignBitsExtractor (embedded, 0x28 bytes)
+  0x0668 u32 sbe_period_=sbe_.period_
+  0x066c u32 sbe_n_=sbe_.n_
+  0x0670 u8 sbe_buf_=sbe_.buf_ 6
+  0x0676 unknown-region sbe_pad0e_=sbe_.pad0e_ 2
+  0x0678 u32 sbe_action_=sbe_.action_
+  0x067c unknown-region sbe_pad14_=sbe_.pad14_ 4
+  0x0680 u8 sbe_sde_state_=sbe_.sde_.state_
+  0x0681 unknown-region sbe_pad19_=sbe_.pad19_ 3
+  0x0684 ptr-to-heap sbe_pdd_state_=sbe_.pdd_.state_
+  0x0688 u32 sbe_pdd_cap_=sbe_.pdd_.cap_
+  0x068c u32 sbe_pdd_n_=sbe_.pdd_.n_
+  0x0690 align8 sbeend_            # end of the embedded V90SignBitsExtractor
+  0x0690 u32 errSum_ 768           # [6][128]: sum of the decision errors per level (the error histogram)
+  0x1290 u32 errCnt_ 768           # [6][128]: number of decisions per level
+  0x1e90 u32 histNo_               # printErrorHistogramAndReset call counter ("Error histogram #%d")
+  0x1e94 u32 delay_                # decisions to skip before the histogram counts
+  0x1e98 u32 integ_                # decisions integrated so far
+  0x1e9c u16 studyIter_            # linearMappingStudy: completed studies
+  0x1e9e unknown-region pad1e9e_ 2 # never touched
+  0x1ea0 ptr-into-heap adid_       # V90AutoDigitalImpDetector * (borrowed; C1 arg 3)
+  0x1ea4 u16 z1ea4_=studyDone_                # zeroed by resetLinearMappStudy / reset; set to 1 when a study completes
+  0x1ea6 u16 z1ea6_=study2Done_                # zeroed by resetLinearMappStudy / reset; set to 1 when the second study completes
+  0x1ea8 u32 studyLen_             # resetLinearMappStudy arg: decisions per study
+  0x1eac u16 prevIdx_              # the level index of the last decision (hardDecision)
+  0x1eae u16 set_                  # the constellation of the last decision (phase_ at its call)
+  0x1eb0 u32 studyCnt_             # decisions in the current study
+  0x1eb4 u16 z1eb4_=linMapStudyOn_                # zeroed by reset, never read
+  0x1eb6 unknown-region pad1eb6_ 2 # never touched

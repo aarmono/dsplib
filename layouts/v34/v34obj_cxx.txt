@@ -1,0 +1,272 @@
+# RS5: the C++-facing additions to the one definition of the V.34 module object (read by `tier_rewrite.py header --cxx`; syntax: see class CxxSpec).
+# The struct is generated from test/v34/v34obj.layout (the layout the plain-C tiers use) and included by BOTH the C tiers (as V34Obj) and the C++ ports
+# (src/v34/v34_object.h, as tagV34Object).  Before RS5 the C++ ports had a second, hand-written struct with these properties:
+#   - typed pointer members (classes of the V.90 / V.92 engine, bit queues, tables), signed 16-bit words;
+#   - names for regions that the tier split into several members (raw `ld16(obj->unkXXXX_, K)` sites), kept here as zero-size markers;
+#   - the 0x20 / 0x30-byte records named as structs (retrain_, info0a_ ... mpQ_).
+
+include v34_records.h
+fwd struct VPcmFloModem
+fwd struct K56FlexHandle
+fwd struct _tagModemParameters
+
+# --- pointer members (the layout says only "pointer"; the C++ ports and tools/layout_gen's mirror use the real types)
+type ctx_ struct VPcmFloModem *
+type k56_ struct K56FlexHandle *
+type params_ struct _tagModemParameters *
+type bitQ_ struct tag_bitQ *
+type bitQ2_ struct tag_bitQ *
+type rxEnd_ const int16_t *
+type hsineTab_ const void *
+type echoBuf_ int16_t *
+type pcmBuf_ int16_t *
+type scalePtr_ const short *
+type scaleTab_ const short *
+type detTab_ const void *
+
+# --- signed 16-bit words (the layout kind u16 has no sign; the C++ code reads them as int16_t: movswl / signed compares)
+type rxW0_ int16_t
+type rxLevel_ int16_t
+type rxGain_ int16_t
+type resOffs_ int16_t
+type equErr_ int16_t
+type rxGainEst_ int16_t
+type txGain_ int16_t
+type constCnt_ int16_t
+type txMdMs_ int16_t
+type bulkDelay_ int16_t
+type txRateIdx_ int16_t
+type rxBaud_ int16_t
+type rxRateIdx_ int16_t
+type rxCarrier_ int16_t
+type info1dPending_ int16_t
+type dgC0c_ int16_t
+type dgC0e_ int16_t
+type dgC10_ int16_t
+type dgC12_ int16_t
+type dgC14_ int16_t
+type eqRe_ int16_t[80]
+type eqIm_ int16_t[80]
+type constPts_ int16_t[1360]
+# --- PM5: the echo adaptation block, signed (every read in src/ names the signed type; the layout kind has no sign)
+type echoAlphaNear_ int16_t
+type echoAlphaFar_ int16_t
+type echoThresh_ int32_t
+type echoK2_ int32_t
+type echoBeta_ int32_t
+# --- PM5: the six signed words of the trellis / shell-mapping state (modulatevector, getFrame), every read in src/ is a signed 16-bit read
+type w25ee_ int16_t
+type w25f0_ int16_t
+type w2618_ int16_t
+type w2620_ int16_t
+type w2622_ int16_t
+type w2626_ int16_t
+# --- PM6: 13 words whose every read (typed accessor, harness raw offset, C++ cast) is a signed 16-bit read, and waac8_ whose reads are unsigned 32-bit
+type w04ca_ int16_t
+type w0a0e_ int16_t
+type w0a10_ int16_t
+type w0a3a_ int16_t
+type w0a40_ int16_t
+type w0a42_ int16_t
+type w0a46_ int16_t
+type wa240_ int16_t
+type w2aa6_ int16_t
+type wabca_ int16_t
+type echoAdaptCnt_ int32_t
+type waac8_ uint32_t
+# --- PM7: the hold timer wabdc_ (every read in src/ and test/ is an int read or an explicit (int) cast) and the three DP-notification words wac40_ wac44_ wac48_ (reads are S32T, the rest are plain stores)
+type wabdc_ int32_t
+type wac40_ int32_t
+type wac44_ int32_t
+type wac48_ int32_t
+
+# --- members split out of unknown regions (tools/split_region.py): signed 16-bit words, and the markers that keep the names test/v34/v01.layout asserts
+type toneCnt_ int16_t
+type toneReq_ int16_t
+type toneState_ int16_t
+type toneLow_ int16_t
+type toneHigh_ int16_t
+type toneEnergy_ int16_t
+type toneInHist_ int16_t[4]
+type toneOutHist_ int16_t[4]
+name unk356c_ uint8_t 0x356c
+
+type waa9c_ int16_t
+type waaa0_ int16_t
+type waaa2_ int16_t
+type waaa4_ int16_t
+type waaa6_ int16_t
+
+type w0a2c_ int16_t[6]
+type pfIdx_ int16_t
+type pfDelay_ int16_t[16]
+type modHist_ int16_t[128]
+
+type w038e_ int16_t
+name unk038e_ uint8_t 0x38e
+type w0424_ int16_t
+name unk0424_ uint8_t 0x424
+type w0450_ int16_t
+type w0452_ int16_t
+type w0456_ int16_t
+type w0458_ int16_t
+type w0464_ int16_t
+type w0466_ int16_t
+type w0468_ int16_t
+type w046a_ int16_t
+type eqPt_ int16_t[2]
+type w0488_ int16_t
+name unk0488_ uint8_t 0x488
+type w0496_ int16_t
+type w0498_ int16_t
+type w049a_ int16_t
+type w04a4_ int16_t
+type w04a6_ int16_t
+type w04a8_ int16_t
+type w04aa_ int16_t
+name unk04a0_ uint8_t 0x4a0
+
+type levelRing_ int16_t[48]
+name unk03a0_ uint8_t 0x3a0
+type tapX2_ int16_t[3]
+type tapX1_ int16_t[3]
+type tapY2_ int16_t[4]
+type tapY1_ int16_t[4]
+
+type toneMode_ int16_t
+name unk0384_ uint8_t 0x384
+name unk039c_ uint8_t 0x39c
+name unk0404_ uint8_t 0x404
+name unk041c_ uint8_t 0x41c
+name unk0420_ uint8_t 0x420
+name unk0438_ uint8_t 0x438
+name unk04b0_ uint8_t 0x4b0
+
+type precCoef_ int16_t[12]
+type symPts_ int16_t[16]
+name unk2a68_ uint8_t 0x2a68
+
+name modTx_ uint8_t 0x1450
+name unk1458_ uint8_t 0x1458
+
+name unkaa8c_ uint8_t 0xaa8c
+
+type waa9a_ int16_t
+name unkaa9a_ uint8_t 0xaa9a
+
+type fskHist_ int16_t[12]
+type fskWin_ int16_t[80]
+
+name unkaab4_ uint8_t 0xaab4
+
+# --- records (anonymous union over the flat members)
+
+# --- names of regions the tier split (zero-size markers: same address, no storage)
+name unk038a_ uint8_t 0x38a
+name unk04ca_ uint8_t 0x4ca
+name unk0e50_ uint8_t 0xe50
+name unk0e9c_ uint8_t 0xe9c
+name unk80c4_ uint8_t 0x80c4
+name unka23e_ uint8_t 0xa23e
+# --- layout members of the C++ class that are a sub-object (or lie in the second instance of one): the offsetof asserts name them by this path
+pathname toneDet_ det
+pathname echoNear_ echo0
+pathname echoFar_ echo1
+pathname unk9144_ echo1.unk80c4_
+name unka24a_ uint8_t 0xa24a
+name fskState_ uint8_t 0xaad0
+name unkaad8_ uint8_t 0xaad8
+name unkaae4_ uint8_t 0xaae4
+pathname i0dUnk00_ info0d
+pathname i1aUnk00_ info
+pathname i1cUnk00_ info1c
+pathname q2Unk00_ q2
+pathname mpUnk00_ mp
+# --- V34DFT: the DFT bin banks: 25 bins at the probe base (V34Probe), 4 at 0xa76c, 3 at 0xa81c; 0x2c bytes each (src/v34/v34_records.h)
+type bin_ DftBin[25]
+type dftB_ DftBin[4]
+type dftC_ DftBin[3]
+# --- V34TRELLIS: the frame decoder's trellis area (src/v34/v34_records.h)
+type trellis_ TrellisMem
+type fbHist_ int16_t[6]
+type smp_ int16_t[8]
+type decPt_ int16_t[2]
+type i0aTail_ V34BitQTail
+type i0dTail_ V34BitQTail
+type i1aTail_ V34BitQTail
+type i1cTail_ V34BitQTail
+type q2Tail_ V34BitQTail
+type mpTail_ V34BitQTail
+# the flat names of the C++ class mirror (test/v34/v01.layout) of the bit-queue tails
+pathname i0a14_ info0a.i0aTail_.crc
+pathname i0a16_ info0a.i0aTail_.crcOn
+pathname i0a18_ info0a.i0aTail_.total
+pathname i0a1a_ info0a.i0aTail_.pos
+pathname i0a1c_ info0a.i0aTail_.chunk
+pathname i0a1e_ info0a.i0aTail_.widx
+pathname i0a20_ info0a.i0aTail_.loop
+pathname i0a22_ info0a.i0aTail_.pass
+pathname i0a24_ info0a.i0aTail_.acc
+pathname i0a28_ info0a.i0aTail_.nbits
+pathname i0a2a_ info0a.i0aTail_.restartBits
+pathname i0a2c_ info0a.i0aTail_.restartAcc
+pathname i0d14_ info0d.i0dTail_.crc
+pathname i0d16_ info0d.i0dTail_.crcOn
+pathname i0d18_ info0d.i0dTail_.total
+pathname i0d1a_ info0d.i0dTail_.pos
+pathname i0d1c_ info0d.i0dTail_.chunk
+pathname i0d1e_ info0d.i0dTail_.widx
+pathname i0d20_ info0d.i0dTail_.loop
+pathname i0d22_ info0d.i0dTail_.pass
+pathname i0d24_ info0d.i0dTail_.acc
+pathname i0d28_ info0d.i0dTail_.nbits
+pathname i0d2a_ info0d.i0dTail_.restartBits
+pathname i0d2c_ info0d.i0dTail_.restartAcc
+pathname i1a14_ info.i1aTail_.crc
+pathname i1a16_ info.i1aTail_.crcOn
+pathname i1a18_ info.i1aTail_.total
+pathname i1a1a_ info.i1aTail_.pos
+pathname i1a1c_ info.i1aTail_.chunk
+pathname i1a1e_ info.i1aTail_.widx
+pathname i1a20_ info.i1aTail_.loop
+pathname i1a22_ info.i1aTail_.pass
+pathname i1a24_ info.i1aTail_.acc
+pathname i1a28_ info.i1aTail_.nbits
+pathname i1a2a_ info.i1aTail_.restartBits
+pathname i1a2c_ info.i1aTail_.restartAcc
+pathname i1c14_ info1c.i1cTail_.crc
+pathname i1c16_ info1c.i1cTail_.crcOn
+pathname i1c18_ info1c.i1cTail_.total
+pathname i1c1a_ info1c.i1cTail_.pos
+pathname i1c1c_ info1c.i1cTail_.chunk
+pathname i1c1e_ info1c.i1cTail_.widx
+pathname i1c20_ info1c.i1cTail_.loop
+pathname i1c22_ info1c.i1cTail_.pass
+pathname i1c24_ info1c.i1cTail_.acc
+pathname i1c28_ info1c.i1cTail_.nbits
+pathname i1c2a_ info1c.i1cTail_.restartBits
+pathname i1c2c_ info1c.i1cTail_.restartAcc
+pathname q214_ q2.q2Tail_.crc
+pathname q216_ q2.q2Tail_.crcOn
+pathname q218_ q2.q2Tail_.total
+pathname q21a_ q2.q2Tail_.pos
+pathname q21c_ q2.q2Tail_.chunk
+pathname q21e_ q2.q2Tail_.widx
+pathname q220_ q2.q2Tail_.loop
+pathname q222_ q2.q2Tail_.pass
+pathname q224_ q2.q2Tail_.acc
+pathname q228_ q2.q2Tail_.nbits
+pathname q22a_ q2.q2Tail_.restartBits
+pathname q22c_ q2.q2Tail_.restartAcc
+pathname mp14_ mp.mpTail_.crc
+pathname mp16_ mp.mpTail_.crcOn
+pathname mp18_ mp.mpTail_.total
+pathname mp1a_ mp.mpTail_.pos
+pathname mp1c_ mp.mpTail_.chunk
+pathname mp1e_ mp.mpTail_.widx
+pathname mp20_ mp.mpTail_.loop
+pathname mp22_ mp.mpTail_.pass
+pathname mp24_ mp.mpTail_.acc
+pathname mp28_ mp.mpTail_.nbits
+pathname mp2a_ mp.mpTail_.restartBits
+pathname mp2c_ mp.mpTail_.restartAcc

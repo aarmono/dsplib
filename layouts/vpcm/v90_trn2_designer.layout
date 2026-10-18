@@ -1,0 +1,6 @@
+# P26 layout of class V90TRN2Designer (32-bit, measured from the blob with `tools/member_map.py blob --class V90TRN2Designer --subobjects`, see porting/decompiled/dp/p26_trn2_designer.txt).
+# Two borrowed pointers, no vptr, trivial ctor / dtor.  Heap block of V90Demodulator: sysdep_malloc(8) in its ctor (0x1c602..0x1c62d), the pointer is stored at V90Demodulator+0x1c (read by exitPhase3's setNofUcodesInTrn2 / V90TRN2Design calls); the ctor's params_ = [demod + 0x2c], power_ = its ctor argument.
+# regenerate: tools/layout_gen.py layouts/vpcm/v90_trn2_designer.layout --chunk p26 --out-port src/vpcm/v90_trn2_designer_layout.inc --port-header vpcm/v90_trn2_designer.h --inc-banner chunk
+class V90TRN2Designer size 0x8 cxx P26_V90TRN2Designer mirror TrnObj
+  0x00 ptr-into-heap params_            # V90Parameters * (borrowed; ctor arg 1): reads +0x74 (unk74 max ucode), +0x78 (unk78 = the number of ucodes in TRN2), +0x80 (unk80), +0x360 (unk360 = the lowest ucode), the spectral shaper words +0x3a8.. / +0x3c0..
+  0x04 ptr-into-heap power_             # V90ConstellationPower * (borrowed; ctor arg 2): getPower / getPowerIndexForPower

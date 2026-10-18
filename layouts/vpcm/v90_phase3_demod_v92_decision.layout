@@ -1,0 +1,97 @@
+# P34 layout (32-bit, measured from the blob: the C1 constructor, reset, getV92Decision and `member_map.py blob --class V90Phase3Demodulator --subobjects` over ALL 19 methods; P35 / P36 reuse this file)
+# regenerate: tools/layout_gen.py layouts/vpcm/v90_phase3_demod_v92_decision.layout --chunk p34 --out-port src/vpcm/v90_phase3_demod_layout.inc --port-header vpcm/v90_phase3_demod.h --inc-banner chunk
+# V90Phase3Demodulator: the V.90 / V.92 phase-3 (RX) state machine (the demodulator side of the line probing: Sd / SdNot / TRN1d / Jd / DIL / QTS / ANSpcm), 0x42c bytes on i386, a plain class (no vptr); V90Demodulator embeds it.
+# It EMBEDS a V90Phase3Modulator (+0x34, the probing signal it knows: the P27 class, flattened here as mod_*; the demodulator reads its event_ / segCnt_ / isRef_ / code_), a
+# SerialDifferentialDecoder<int> (+0x3cc) and a Descrambler<int,int> (+0x3d0, flattened as descr_*); the V90SdDetector (0x1c B) and the ANSamToneDetector (0x3c B) are heap objects it allocates in the constructor.
+# The objects it USES (V90AutoDigitalImpDetector, V90Parameters, V90Jd, V92Jd, tagV90DILdescriptor) are plain pointers.  Member names are descriptive (the vendor's are unknown); the states come from the debug strings.
+class V90Phase3Demodulator size 0x42c cxx P34_V90Phase3Demodulator mirror Ph3DemObj
+  0x0000 ptr-into-heap adid_       # V90AutoDigitalImpDetector * (C1 arg 4): the linear mappings / study
+  0x0004 u32 phase_                # the frame position 0 .. 5 (incrementFramePosition: +1 mod 6); read as 16 bit (movzwl / movswl) at most uses
+  0x0008 u32 session_              # C1 arg 3 / setSessionFlag: nonzero = V.92 session (getDecision calls getV92Decision)
+  0x000c ptr-into-heap params_     # C1 arg 1 (V90Parameters *)
+  0x0010 u32 pcm_                  # reset arg 1 (PcmType): 0 = mu-law, nonzero = A-law
+  0x0014 u32 timeBase_             # reset arg 11: the time-out base of the Sd / Jd states
+  0x0018 u8 code_                  # reset arg 2: the G.711 code of the reference level
+  0x0019 unknown-region pad19_ 1   # never touched
+  0x001a u16 level_                # linear value of code_ (signed): the decision level compared with |modulator symbol|
+  0x001c ptr-into-heap dil_        # reset arg 7 (tagV90DILdescriptor *): handed to the modulator's reset
+  0x0020 ptr-into-heap jd_         # reset arg 5 (V90Jd *)
+  0x0024 ptr-into-heap jd92_       # reset arg 6 (V92Jd *)
+  0x0028 u32 state_                # Phase3DemodulatorState (getV92Decision dispatches on it: 0 .. 0x21)
+  0x002c u32 cnt_                  # symbols since the state began (incremented BEFORE the dispatch)
+  0x0030 u32 event_                # output marker of the symbol just processed (cleared at the start; the owner reads it)
+  # --- the embedded V90Phase3Modulator (flattened from test/vpcm/pcm_phase3_modulators.layout, +0x34; `align8` = the sub-object holds pointers: 8-aligned and padded on x86-64) ---
+  0x0034 align8 modalign_
+  0x0034 u32 mod_flag_=mod_.flag_   # setSessionFlag / C1 arg 2: nonzero = V.92 session (generateSymbol calls generateV92Symbol)
+  0x0038 u32 mod_alaw_=mod_.alaw_   # reset arg 1 (PcmType): nonzero = A-law, 0 = mu-law
+  0x003c u32 mod_timeBase_=mod_.timeBase_   # reset arg 8: the Jd / DIL timeout bases
+  0x0040 u16 mod_levelA_=mod_.levelA_   # linear value of reset arg 2 (a G.711 code), amplitude of the Sd / TRN1d / Jd symbols
+  0x0042 u16 mod_levelB_=mod_.levelB_   # linear value of (code + 0x10): the second Sd level
+  0x0044 unknown-region mod_pad10_=mod_.pad10_ 2   # never touched
+  0x0046 u16 mod_levelC_=mod_.levelC_   # linear value of the G.711 code 0xd5 / 0xff (the smallest level)
+  0x0048 u32 mod_state_=mod_.state_   # generator state 0 .. 0xf
+  0x004c u32 mod_cnt_=mod_.cnt_   # symbols since the state began
+  0x0050 u32 mod_event_=mod_.event_   # output marker (0 none, 1 .. 6 phase boundaries)
+  0x0054 ptr-to-heap mod_scr_buf_=mod_.scr_.buf_   
+  0x0058 ptr-into-heap mod_scr_head0_=mod_.scr_.head0_   
+  0x005c ptr-into-heap mod_scr_t1_0_=mod_.scr_.t1_0_   
+  0x0060 ptr-into-heap mod_scr_end_=mod_.scr_.end_   
+  0x0064 ptr-into-heap mod_scr_wr_=mod_.scr_.wr_   
+  0x0068 ptr-into-heap mod_scr_t1_=mod_.scr_.t1_   
+  0x006c ptr-into-heap mod_scr_t2_=mod_.scr_.t2_   
+  0x0070 u32-ptrslot mod_scr_tail_=mod_.scr_.tail_   
+  0x0074 u32 mod_jdBit_=mod_.jdBit_   # the last bit of the Jd / TRN1d scrambled stream (differential state)
+  0x0078 ptr-into-heap mod_jdBits_=mod_.jdBits_   # V90Jd::getBitVector() of reset arg 5 (TX frame bytes, 0x48 of them)
+  0x007c ptr-into-heap mod_v92JdBits_=mod_.v92JdBits_   # V92Jd::getJdBitVector() of reset arg 6
+  0x0080 ptr-into-heap mod_v92JdPhaseBits_=mod_.v92JdPhaseBits_   # V92Jd::getJdPhaseBitVector() of reset arg 6
+  0x0084 ptr-into-heap mod_params_=mod_.params_   # C1 arg 1 (V90Parameters *): stored, never read
+  0x0088 u8 mod_dilN_=mod_.dilN_   # DIL descriptor copy: number of TO entries (0 = no DIL)
+  0x0089 u8 mod_dilLsp_=mod_.dilLsp_   # number of sp_ entries
+  0x008a u8 mod_dilLtp_=mod_.dilLtp_   # number of tp_ entries
+  0x008b u8 mod_sp_=mod_.sp_ 128   # sign pattern (Lsp entries)
+  0x010b u8 mod_tp_=mod_.tp_ 128   # level selector pattern (Ltp entries)
+  0x018b unknown-region mod_pad157_=mod_.pad157_ 1   # never touched
+  0x018c u32 mod_segLen_=mod_.segLen_ 8   # 6 + 6 * H[k]: symbols of segment k
+  0x01ac u16 mod_ref_=mod_.ref_ 8   # linear values of REF[k]
+  0x01bc u16 mod_to_=mod_.to_ 256   # linear values of TO[i] (N <= 255 entries used)
+  0x03bc u8 mod_spIdx_=mod_.spIdx_   
+  0x03bd u8 mod_tpIdx_=mod_.tpIdx_   
+  0x03be u8 mod_toIdx_=mod_.toIdx_   
+  0x03bf unknown-region mod_pad38b_=mod_.pad38b_ 1   # never touched
+  0x03c0 u32 mod_segCnt_=mod_.segCnt_   
+  0x03c4 u8 mod_seg_=mod_.seg_   # the code segment of to_[toIdx_] (0 .. 8; 8 = none)
+  0x03c5 unknown-region mod_pad391_=mod_.pad391_ 1   # never touched
+  0x03c6 u16 mod_isRef_=mod_.isRef_   # 1 when the current level is the REF level (tp_[tpIdx_] == 0)
+  0x03c8 u8 mod_code_=mod_.code_   # G.711 code of to_[toIdx_]
+  0x03c9 unknown-region mod_pad395_=mod_.pad395_ 3   # never touched
+  0x03cc align8 modend_
+  # --- SerialDifferentialDecoder<int> / Descrambler<int,int> / the heap objects ---
+  0x03cc i32 sdd_state_=sdd_.state_   # SerialDifferentialDecoder<int>
+  0x03d0 ptr-to-heap descr_buf_=descr_.buf_
+  0x03d4 ptr-into-heap descr_head0_=descr_.head0_
+  0x03d8 ptr-into-heap descr_t1_0_=descr_.t1_0_
+  0x03dc ptr-into-heap descr_end_=descr_.end_
+  0x03e0 ptr-into-heap descr_wr_=descr_.wr_
+  0x03e4 ptr-into-heap descr_t1_=descr_.t1_
+  0x03e8 ptr-into-heap descr_t2_=descr_.t2_
+  0x03ec u32-ptrslot descr_tail_=descr_.tail_
+  0x03f0 ptr-to-heap sd_           # V90SdDetector * (allocated by the constructor, 0x1c bytes)
+  0x03f4 u32 w3f4_                 # a copy of params 0x344 / 0x4a4 (getV92Decision, state 3 / 2 end)
+  0x03f8 u8 impairInfo_            # written by V90Demodulator::progress, read by setDigitalImairmentsInfo (determineMaxUcode's argument)
+  0x03f9 u8 flag3f9_               # reset clears it; the error-relaxation state counts cnt3fc_ while it is set
+  0x03fa unknown-region pad3fa_ 2  # never touched
+  0x03fc u32 cnt3fc_
+  0x0400 u16 flag400_              # reset clears it; selects the event code 0xa / 0x10 in the DIL second study
+  0x0402 unknown-region pad402_ 2  # never touched
+  0x0404 u32 jdNotCnt_             # JdNotDetector: the run of zero decisions (unsigned compare with 11)
+  0x0408 u32 status_               # the decision status of the last symbol (studyUrefHandler's result, 0 / 1)
+  0x040c u32 dilLen_               # calculateDilLength(dil_, pcm_) (reset)
+  0x0410 u32 lineMode_             # reset clears it; resetStudyUrefHandler's argument; nonzero selects the QC states
+  0x0414 u16 arg9_                 # reset arg 9 (short, stored, never read by the other functions)
+  0x0416 unknown-region pad416_ 2  # never touched
+  0x0418 float32 arg10_            # reset arg 10 (float, stored as a word)
+  0x041c u32 verify_               # clearVerificationStatus clears it; the decision-not-same-line flag (VPcmFloModem::qcLineVerification reads it)
+  0x0420 u32 trn1Len_              # state 4 ends when cnt_ reaches it (a copy of params 0x2fc / 0x4a0)
+  0x0424 u8 b424_=sdToneSeen_                  # reset clears it
+  0x0425 unknown-region pad425_ 3  # never touched
+  0x0428 ptr-to-heap ans_          # ANSamToneDetector * (allocated by the constructor, 0x3c bytes)

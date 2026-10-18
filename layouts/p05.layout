@@ -1,0 +1,111 @@
+# P05 class layouts (32-bit, measured from the blob: ctors / dtors / reset / resample / timingCorrection / setBllState; see porting/decompiled/dp/p05_resampler.txt)
+# regenerate: tools/layout_gen.py layouts/p05.layout --chunk p05 --out-port src/dsp/dsp_resampler_layout.inc --port-header dsp/dsp_resampler.h
+# vptr: `&_ZTV<class> + 8` (registered with h_register_vtable by the harness); pend_ and every float are compared as bit patterns.
+class Resampler size 0x48 cxx P05_Resampler mirror RsObj
+  0x00 vptr vptr_
+  0x04 ptr-into-heap coef_       # polyphase table (rows of taps_): owned heap block (float ctor) or borrowed (pointer ctor, borrowed_ = 1)
+  0x08 ptr-to-heap hist_         # heap block of histLen_ floats (NULL if histLen_ == 0 / the allocation failed)
+  0x0c double phase_
+  0x14 float32 pend_ 5
+  0x28 u32 pendCount_
+  0x2c float32 step_
+  0x30 u32 L_
+  0x34 u32 taps_
+  0x38 u32 histLen_
+  0x3c u32 wr_
+  0x40 u32 need_
+  0x44 u32 borrowed_
+
+class ResamplerTimingOffset size 0x4c cxx P05_ResamplerTimingOffset mirror RoObj
+  0x00 vptr vptr_
+  0x04 ptr-into-heap coef_       # polyphase table (rows of taps_): owned heap block (float ctor) or borrowed (pointer ctor, borrowed_ = 1)
+  0x08 ptr-to-heap hist_         # heap block of histLen_ floats (NULL if histLen_ == 0 / the allocation failed)
+  0x0c double phase_
+  0x14 float32 pend_ 5
+  0x28 u32 pendCount_
+  0x2c float32 step_
+  0x30 u32 L_
+  0x34 u32 taps_
+  0x38 u32 histLen_
+  0x3c u32 wr_
+  0x40 u32 need_
+  0x44 u32 borrowed_
+  0x48 float32 off_
+
+class ResamplerTiming size 0x94 cxx P05_ResamplerTiming mirror RtObj
+  0x00 vptr vptr_
+  0x04 ptr-into-heap coef_       # polyphase table (rows of taps_): owned heap block (float ctor) or borrowed (pointer ctor, borrowed_ = 1)
+  0x08 ptr-to-heap hist_         # heap block of histLen_ floats (NULL if histLen_ == 0 / the allocation failed)
+  0x0c double phase_
+  0x14 float32 pend_ 5
+  0x28 u32 pendCount_
+  0x2c float32 step_
+  0x30 u32 L_
+  0x34 u32 taps_
+  0x38 u32 histLen_
+  0x3c u32 wr_
+  0x40 u32 need_
+  0x44 u32 borrowed_
+  0x48 float32 off_
+  0x4c float32 gainA_
+  0x50 float32 gainB_
+  0x54 float32 errOut_
+  0x58 float32 f58_
+  0x5c float32 lastCorr_
+  0x60 u32 parity_
+  0x64 unknown-region pad64_ 4   # never touched by any of the 51 functions
+  0x68 float32 energy_
+  0x6c float32 energyPrev_
+  0x70 float32 bpf_
+  0x74 float32 bpfPrev_
+  0x78 float32 errAcc_
+  0x7c u32 dftN_
+  0x80 float32 dftMag_
+  0x84 float32 dftRe_
+  0x88 float32 dftIm_
+  0x8c u8 dftDone_
+  0x8d unknown-region pad8d_ 3   # padding after the byte flag
+  0x90 float32 bpfGain_
+
+class V90Resampler size 0xb4 cxx P05_V90Resampler mirror VrObj
+  0x00 vptr vptr_
+  0x04 ptr-into-heap coef_       # polyphase table (rows of taps_): owned heap block (float ctor) or borrowed (pointer ctor, borrowed_ = 1)
+  0x08 ptr-to-heap hist_         # heap block of histLen_ floats (NULL if histLen_ == 0 / the allocation failed)
+  0x0c double phase_
+  0x14 float32 pend_ 5
+  0x28 u32 pendCount_
+  0x2c float32 step_
+  0x30 u32 L_
+  0x34 u32 taps_
+  0x38 u32 histLen_
+  0x3c u32 wr_
+  0x40 u32 need_
+  0x44 u32 borrowed_
+  0x48 float32 off_
+  0x4c float32 gainA_
+  0x50 float32 gainB_
+  0x54 float32 errOut_
+  0x58 float32 f58_
+  0x5c float32 lastCorr_
+  0x60 u32 parity_
+  0x64 unknown-region pad64_ 4   # never touched by any of the 51 functions
+  0x68 float32 energy_
+  0x6c float32 energyPrev_
+  0x70 float32 bpf_
+  0x74 float32 bpfPrev_
+  0x78 float32 errAcc_
+  0x7c u32 dftN_
+  0x80 float32 dftMag_
+  0x84 float32 dftRe_
+  0x88 float32 dftIm_
+  0x8c u8 dftDone_
+  0x8d unknown-region pad8d_ 3   # padding after the byte flag
+  0x90 float32 bpfGain_
+  0x94 u32 state_
+  0x98 u32 stateCount_
+  0x9c u32 stateFlag_
+  0xa0 ptr-into-heap params_     # V90Parameters * (borrowed; a harness-owned block)
+  0xa4 ptr-to-heap tHist_        # heap block of tHistLen_ floats
+  0xa8 u32 tHistLen_
+  0xac u32 tHistIdx_
+  0xb0 u32 tCount_

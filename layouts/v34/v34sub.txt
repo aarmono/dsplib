@@ -1,0 +1,22 @@
+# Sub-objects of the V.34 module object that the V.34 files reach through a derived base pointer.  Format: <key> <Struct> <size> <base> [<base2> ...]   # comment
+# A struct is the slice [base, base + size) of the V34Obj mirror of test/v34/v34obj.layout (generated into src/v34/v34_subobjects.h by `tools/tier_rewrite.py slice`); a second base is another INSTANCE
+# of the same struct (its shape is compared with the first and reported).  Sizes are the distance to the next known sub-object: an UPPER BOUND where the class size is not known.
+rx    V34Rx      0x11ec 0x264   # receive front end (the `b` base of the RX files): +0x130 = rxEnd_ (end pointer of the FSK demodulator buffer, the tone detector's sink), +0x1b4 = hsineTab_; ends at the modulator
+mod   V34Mod     0xdcc  0x1450   # transmit modulator (v34setuptxmit is passed obj + 0x1450); ends at the V.34 transmit block (0x221c)
+tx    V34Tx      0x132c 0x221c   # transmit block: txIdx_, scrambler / precoder state, the 0x25f8 history; ends at ctx_ (0x3548)
+echo  V34Echo    0x20   0x80b8 0x9138      # the two embedded EchoAdaptState records (near / far echo canceller report blocks, src/v34/v34_dsp_primitives.c: 5 pointers, reserved14, delayLineLen, N)
+det   V34ToneDet 0x24   0x3564   # the tone detector record `det` (tone_detect / detectorinit / fskdetect): +0 = the coefficient-table pointer (4 bytes in the 32-bit layout)
+rate  V34Rate    0x30   0xaa84   # the rate block `q` of the probing-result selector (baud_ .. detTab_)
+info  V34Info    0x30   0xa9ac   # the INFO1a bit-queue record `p` of the probing-result selector
+info0a V34Info0a 0x30   0xa94c   # the other five bit-queue records of the object (same 0x30-byte shape, pointer-free, but different member names: each is its own key / struct)
+info0d V34Info0d 0x30   0xa97c   # INFO0d bit-queue record (V34SetINFO0dBits)
+info1c V34Info1c 0x30   0xa9dc
+q2    V34Q2      0x30   0xaa0c
+mp    V34MpQ     0x30   0xaa3c
+retrain V34Retrain 0x20 0xac1c   # the retrain request detector record (resetRetrainDetector, InitiateRetrain, the retrain progress filter)
+probe V34Probe   0x44c  0xa320   # probing results R (second argument of chkForceBaudRate): the 25 DFT bins (DftBin, 0x2c bytes each) at the probe base; V34GiveProbeResults copies their energies to probeEnergy_ (obj+0xa258)
+blkb  V34BlkB    0x450  0xa00   # `blk`, "block B" (PreInitBlock) of the frame decoder
+pf    V34PreFilter 0x88 0x2078          # PreFilterState (src/v34/v34_dsp_primitives.c): 84-byte FIR delay line, coef pointer +0x54, idx +0x58, cap +0x5c, len2 +0x60 (V34EchoPreFilter / BackwardClean)
+
+# Sub-objects whose struct is the only definition of its members in V34Obj (see read_sub_spec in tools/tier_rewrite.py):
+sole det rate probe echo tx mod pf rx blkb info0a info0d info info1c q2 mp retrain

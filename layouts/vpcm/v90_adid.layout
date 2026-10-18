@@ -1,0 +1,57 @@
+# P18 / P19 / P20 layout of class V90AutoDigitalImpDetector (32-bit, measured from the blob: C1 (params_ only), reset, resetLinearMapping, resetStudyUrefHandler, the study
+# handlers, findPadGain, determineMaxUcode and every accessor; see porting/decompiled/dp/p18_p20_autodigitalimp.txt).  sysdep_malloc(0xa9b0) in V90Demodulator::V90Demodulator;
+# the constructor stores ONLY params_ (everything else is garbage until reset(); the harness gives it a random fill).
+# regenerate: tools/layout_gen.py layouts/vpcm/v90_adid.layout --chunk p18 --out-port src/vpcm/v90_adid_layout.inc --port-header vpcm/v90_adid.h --inc-banner chunk
+# Two-dimensional arrays are [phase 0..5][ucode 0..127] flattened (index = phase * 128 + ucode).
+class V90AutoDigitalImpDetector size 0xa9b0 cxx P18_V90AutoDigitalImpDetector mirror AdidObj
+  0x0000 u16 linearMapping_ 768          # int16 [6][128]: the linear PCM value of every ucode, per phase (the product of the study)
+  0x0600 u16 linearMappingAlt_ 768       # int16 [6][128]: the alternate (RBS-robbed phase) mapping
+  0x0c00 u16 prevSessionLinearMapping_ 128   # int16 [128]: setPrevSessionLinearMapping (never read by this class)
+  0x0d00 u8 ucodeAllowed_ 768            # [6][128]: reset sets 1 (read by V90ConstellationDesigner)
+  0x1000 float32 cumSum_ 768             # [6][128]: sum of |sample| per (phase, ucode)
+  0x1c00 u32 cumCount_ 768               # [6][128]: number of samples
+  0x2800 u16 altRbsPhase_ 6              # int16 [6]: phase is robbed-bit-signalling alternate (read by V90Phase3Demodulator / V90Demapper)
+  0x280c u8 suspectedPhase_ 6            # [6]: porcessFirstStudy "suspected rbs patern"
+  0x2812 unknown-region unk2812_ 2       # never touched
+  0x2814 ptr-into-heap params_           # V90Parameters * (borrowed)
+  0x2818 u16 storage_ 12660              # int16 [6][2110] (0x83e per phase): addReceivedSampleToStorage
+  0x8b00 u16 storedCount_ 768            # uint16 [6][128]: histogram of the stored samples per (phase, ucode)
+  0x9100 u32 storageFill_ 6              # [6]: number of samples in storage_[phase]
+  0x9118 float32 cumSumSq_ 768           # [6][128]: sum of squares
+  0x9d18 float32 altSum_ 6               # [6]: sum of |value| of the alternate samples
+  0x9d30 u32 altCount_ 6                 # [6]
+  0x9d48 float32 variance_ 768           # [6][128]
+  0xa948 u16 studyDone_ 1                # int16: 0 in reset, 1 at the end of the second update of the study
+  0xa94a unknown-region unka94a_ 2       # never touched
+  0xa94c float32 padGain_                # reset 1.0f; findPadGain stores the identified gain; applyPadGainToLinMapp divides by it
+  0xa950 float32 studyParam_             # read by resetStudyUrefHandler (a float seed: 0.5f * x ...)
+  0xa954 u8 maxUcode_                    # determineMaxUcode
+  0xa955 unknown-region unka955_ 1       # never touched
+  0xa956 u8 maxUcodeArray_ 6             # [6]: determineMaxUcode / setMaxUcodeArray
+  0xa95c i32 pcmType_                    # reset(.., PcmType, ..): 0 = mu-law, nonzero = A-law
+  0xa960 i32 codecIsAlaw_                # findPadGain: 1 = A-law identified, 0 = mu-law
+  0xa964 float32 trn1Sigma_              # mean variance of the unsuspected phases after the first study
+  0xa968 u16 unsuspectedPhase_           # int16
+  0xa96a u8 nofSuspectedPhases_
+  0xa96b u8 refUcode_                    # reset(arg1)
+  0xa96c u16 refLinear_                  # int16: the linear value of refUcode_
+  0xa96e u16 resetArg3_                  # int16: third argument of reset
+  0xa970 float32 altVarFactor_
+  0xa974 float32 altVarFactor974_
+  0xa978 u16 lineType2Flag_
+  0xa97a u16 minMaxUcode_
+  0xa97c float32 minUcodeScale_
+  0xa980 float32 varThreshFactor_
+  0xa984 u32 studyState_                 # studyUrefHandler's state (0 .. 6)
+  0xa988 u32 studyCounter_
+  0xa98c u32 studyLen0_
+  0xa990 u32 studyLen1_
+  0xa994 u32 studyLen2_
+  0xa998 u32 studyLen3_
+  0xa99c u32 studyLen4_
+  0xa9a0 u32 studyLen5_
+  0xa9a4 u16 sqrDiffThreshUref_          # int16
+  0xa9a6 u16 altRbsThresh_               # int16
+  0xa9a8 float32 altVarThreshMax_
+  0xa9ac u16 sqrDiffThreshMin_           # int16
+  0xa9ae u16 sqrDiffThreshMax_           # int16

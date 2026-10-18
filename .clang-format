@@ -1,0 +1,10 @@
+# LLVM style, 160 columns, with: opening braces on their own line (Allman) and the pointer star next to the type (int* p).
+# SortIncludes is off because include order matters in this tree (see CLAUDE.md "Header convention"); ReflowComments is off so that comments are only
+# re-indented here and rewrapped in the later comment phase.
+BasedOnStyle: LLVM
+ColumnLimit: 160
+BreakBeforeBraces: Allman
+PointerAlignment: Left
+DerivePointerAlignment: false
+SortIncludes: Never
+ReflowComments: Never

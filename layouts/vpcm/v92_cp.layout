@@ -1,0 +1,93 @@
+# P11 / P12 layouts (32-bit, measured from the blob; see porting/decompiled/dp/p11_p12_cp_packers.txt)
+# regenerate: tools/layout_gen.py layouts/vpcm/v92_cp.layout --chunk p11 --out-port src/vpcm/v92_cp_layout.inc --port-header vpcm/v92_cp.h --inc-banner chunk
+# V92CP: sysdep_malloc(0x918) in V92Modem::C1 / C2 (pointer at V92Modem+0xaa4), arrays of the CP words in two regions (8 words per group, 6 groups)
+class V92CP size 0x918 cxx P11_V92CP mirror V92CpObj
+  0x00 u8 type_
+  0x01 u8 mode_
+  0x02 u8 rate_
+  0x03 u8 b03_
+  0x04 u8 flag_
+  0x05 unknown-region unk05_ 3
+  0x08 u32 w08_=sr_
+  0x0c u32 w0c_=id_
+  0x10 float32 f10_=trn1dRms_
+  0x14 float32 f14_=shaperA1_
+  0x18 float32 f18_=shaperA2_
+  0x1c float32 f1c_=shaperB1_
+  0x20 float32 f20_=shaperB2_
+  0x24 u8 flagB_
+  0x25 unknown-region unk25_ 3
+  0x28 u32 grp_ 6
+  0x40 unknown-region unk40_ 2
+  0x42 u16 arrA_ 48
+  0xa2 u16 arrB_ 48
+  0x102 unknown-region unk102_ 2
+  0x104 u32 suv_
+  0x108 u32 suvVal_
+  0x10c u16 nGrp_
+  0x10e unknown-region unk10e_ 2
+  0x110 u32 cptSent_
+  0x114 u32 state_
+  0x118 u8 modeCopy_
+  0x119 u8 ones_
+  0x11a u8 zeros_
+  0x11b unknown-region unk11b_ 1
+  0x11c u32 widx_
+  0x120 u32 count_
+  0x124 u32 cursor_
+  0x128 u8 mult_
+  0x129 u8 bits_ 2000
+  0x8f9 u8 crc_ 16
+  0x909 unknown-region unk909_ 3
+  0x90c u32 totalLen_
+  0x910 u32 frameLen_
+  0x914 i32 supp_
+# V90MappingParams ("ParamsInfo"): two of them at VPcmFloModem+0x1770 / +0x1dc0 (0x650 apart); P06 reads +0, +0x4 + 0x80 k, +0x304 + 0x80 k, +0x604 + 4 k, +0x620 by byte offset
+class V90MappingParams size 0x650 cxx P11_V90MappingParams mirror MapPar90
+  0x000 u32 w0_=kBits_
+  0x004 u8 listA_ 768
+  0x304 u8 listB_ 768
+  0x604 u32 cnt_ 6
+  0x61c u32 flag_
+  0x620 u32 w620_=sr_
+  0x624 u32 w624_=id_
+  0x628 float32 f628_=shaperA1_
+  0x62c float32 f62c_=shaperA2_
+  0x630 float32 f630_=shaperB1_
+  0x634 float32 f634_=shaperB2_
+  0x638 u32 idx_ 6
+# tagV90AdditionalCPinfo (VPcmFloModem+0x2410): only the six words the packers read; the rest of the object (up to V90Modem+0xdf4 = +0x254c, 0x13c bytes) is unknown to P11 / P12
+class V90AdditionalCPinfo size 0x18 cxx P11_V90AdditionalCPinfo mirror AddCp
+  0x00 u32 w0_=flag_
+  0x04 u32 w4_=mode_
+  0x08 float32 f8_=trn1dRms_
+  0x0c u32 wc_
+  0x10 u32 w10_=suvVal_
+  0x14 u32 w14_
+# V92MappingParams: sysdep_malloc(0xb4) in V92Modem::C1 / C2 right after the V92CP; the pointer members are allocated / freed by the P14 functions V92create* / V92delete* (arr_: 4 x 0x600 B, lcp_: 6 x 0x200 B)
+class V92MappingParams size 0xb4 cxx P11_V92MappingParams mirror MapPar92
+  0x00 i32 w0_
+  0x04 u32 a_
+  0x08 u32 b_
+  0x0c u32 c_
+  0x10 i32 trellis_
+  0x14 i32 extendEu_
+  0x18 float32 gain_
+  0x1c u32 m_ 12
+  0x4c u32 cnt_ 4
+  0x5c ptr-into-heap arr_ 4
+  0x6c u32 lc_ 6
+  0x84 ptr-into-heap lcp_ 6
+  0x9c u32 idxc_ 6
+# the unpacked CP struct read by the dead setParamsInfoFromCPUnPck (no owner / caller in the blob: only the touched members are named)
+class CPUnPck size 0x100 cxx P11_CPUnPck mirror CpUnpck
+  0x00 unknown-region unk00_ 20
+  0x14 u32 rate_
+  0x18 u32 w_ 6
+  0x30 u8 flag_
+  0x31 u8 grp_ 6
+  0x37 unknown-region unk37_ 3
+  0x3a u16 arrA_ 48
+  0x9a unknown-region unk9a_ 2
+  0x9c u16 arrB_ 48
+  0xfc ptr-into-heap sub_

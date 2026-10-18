@@ -1,0 +1,82 @@
+# P39 layouts (32-bit, measured from the blob: the C1 constructors, reset, the debug-print paths and `member_map.py blob --class V90Modulator|V92Modulator --subobjects` over ALL methods; see porting/decompiled/dp/p39_modulators.txt)
+# regenerate: tools/layout_gen.py layouts/vpcm/v90_modulator.layout --chunk p39 --out-port src/vpcm/pcm_modulators_layout.inc --port-header vpcm/pcm_modulators.h --inc-banner chunk
+# V90Modulator: the top-level V.90 / V.92-session transmit controller (V90Modem owns one, 0x70 bytes on i386): a plain class (no vptr, no base class).  It OWNS (heap objects the C1 constructor allocates with sysdep_malloc and
+# the destructor destroys) a V90Phase3Modulator (+0x38), a V90Phase4Modulator (+0x3c) and a V90BitsToSymbol (+0x40), embeds a Scrambler<int, uchar> (+0x44, 0x20 B, flattened here as scr_*) and owns two sample buffers.  It
+# BORROWS the objects it drives (the C1 arguments: V90Phase2Info, V90Jd, V92Jd, DIL descriptor, two V90MappingParams, the additional CP info, V90MP, V90CP, V90Parameters).  state_: 0 silence, 1 phase 3, 2 phase 4, 3 data.
+class V90Modulator size 0x70 cxx P39_V90Modulator mirror ModV90Obj
+  0x00 ptr-into-heap info_         # V90Phase2Info * (C1 arg 2): pcmType_ (+0), rtd_ (+4), uinfo_ byte (+8) are the arguments of the phase 3 / phase 4 resets
+  0x04 ptr-into-heap jd_           # V90Jd * (C1 arg 3): handed to the phase 3 reset
+  0x08 ptr-into-heap v92jd_        # V92Jd * (C1 arg 4)
+  0x0c ptr-into-heap dil_          # tagV90DILdescriptor * (C1 arg 5)
+  0x10 ptr-into-heap mp1_          # V90MappingParams * (C1 arg 6): the TRN2d parameters (word 0 = D, copied to the MP / CP at exitRi)
+  0x14 ptr-into-heap mp2_          # V90MappingParams * (C1 arg 7): the data-phase parameters
+  0x18 ptr-into-heap addCp_        # tagV90AdditionalCPinfo * (C1 arg 8): stored, never read by these methods
+  0x1c ptr-into-heap mp_           # V90MP * (C1 arg 9)
+  0x20 ptr-into-heap cp_           # V90CP * (C1 arg 10)
+  0x24 ptr-into-heap params_       # V90Parameters * (C1 arg 11)
+  0x28 u32 session_                # C1 arg 12 / setSessionFlag: nonzero = V.92 session
+  0x2c u32 state_                  # 0 silence, 1 phase 3, 2 phase 4, 3 data phase
+  0x30 u32 cnt_                    # symbols since the state began
+  0x34 u32 event_                  # output marker of the last progress call (the owner reads it)
+  0x38 ptr-into-heap p3_           # V90Phase3Modulator * (heap 0x398, built by C1)
+  0x3c ptr-into-heap p4_           # V90Phase4Modulator * (heap 0x2fac, built by C1)
+  0x40 ptr-into-heap b2s_          # V90BitsToSymbol * (heap 0x24, built by C1)
+  # --- the embedded Scrambler<int, unsigned char> (+0x44, `align8` = the sub-object holds pointers: 8-aligned and padded on x86-64) ---
+  0x44 align8 scralign_
+  0x44 ptr-to-heap scr_buf_=scr_.buf_
+  0x48 ptr-into-heap scr_head0_=scr_.head0_
+  0x4c ptr-into-heap scr_t1_0_=scr_.t1_0_
+  0x50 ptr-into-heap scr_end_=scr_.end_
+  0x54 ptr-into-heap scr_wr_=scr_.wr_
+  0x58 ptr-into-heap scr_t1_=scr_.t1_
+  0x5c ptr-into-heap scr_t2_=scr_.t2_
+  0x60 u32-ptrslot scr_tail_=scr_.tail_
+  0x64 align8 scrend_
+  0x64 u32 blk_                    # C1 arg 1: symbols per progress call (the buffers hold blk_ entries)
+  0x68 ptr-to-heap symBuf_         # heap blk_ * 2: the 16-bit symbols of one block
+  0x6c ptr-to-heap bitBuf_         # heap blk_ * 8: the scrambled bits (data phase)
+
+# V92Modulator: the V.92 counterpart (0x90 bytes on i386, a plain class): it additionally owns the TX sample-rate chain: a ResamplerTimingOffset (+0x50, heap 0x4c, a VIRTUAL class), a Queue<float> (+0x74, heap 0x14),
+# a FloatFIR (+0x78, heap 0x14) and four buffers; the Scrambler<int, uchar> is embedded at +0x54 (0x20 B).  state_: 0 silence, 1 phase 3, 2 phase 4, 3 data.
+class V92Modulator size 0x90 cxx P39_V92Modulator mirror ModV92Obj
+  0x00 u32 blk_                    # C1: (int)(0.5 + arg1 * 5/6): symbols per output block
+  0x04 u32 half_                   # params->modulatorQueueLength >> 1 (signed shift): the number of zero samples the queue is primed with
+  0x08 u32 cur_                    # symbols to generate in the current progress call: blk_ + half_ - (queued samples mod size)
+  0x0c u8 codeA_                   # phase 4 reset byte (enterPhase4 / progress): never written by these methods but reset clears it
+  0x0d u8 codeB_                   # phase 4 reset byte of initiateRRN / initiateFPE
+  0x0e unknown-region pad0e_ 2     # never touched
+  0x10 ptr-into-heap info_         # V92Phase2Info * (C1 arg 2): rtd_ (+4) is the last argument of the phase 4 reset and the phase 3 timeBase
+  0x14 ptr-into-heap ja_           # V92Ja * (C1 arg 3): handed to the phase 3 reset
+  0x18 ptr-into-heap dil_          # tagV90DILdescriptor * (C1 arg 4)
+  0x1c ptr-into-heap mp_           # V92MappingParams * (C1 arg 6): stored, passed to the phase 4 constructor
+  0x20 ptr-into-heap cp_           # V92CP * (C1 arg 5)
+  0x24 float32 skew_               # never written by these methods: the resampler phase correction mkResampledSignal adds (set by the owner)
+  0x28 float32 ppm_                # timing offset handed to the resampler every progress call (reset clears it)
+  0x2c u32 state_                  # 0 silence, 1 phase 3, 2 phase 4, 3 data
+  0x30 u32 cnt_                    # symbols since the state began
+  0x34 u32 event_                  # output marker of the last progress call
+  0x38 u32 split_                  # 0 / 1 / 2: the phase 3 generator raised event 5 / 7 inside this block (the resampler then runs in two parts)
+  0x3c u32 splitAt_                # the symbol index inside the block where it did
+  0x40 ptr-into-heap params_       # V92Parameters * (C1 arg 7)
+  0x44 ptr-into-heap p3_           # V92Phase3Modulator * (heap 0x50)
+  0x48 ptr-into-heap p4_           # V92Phase4Modulator * (heap 0x1cc)
+  0x4c ptr-into-heap b2s_          # V92BitsToSymbol * (heap 0x20)
+  0x50 ptr-into-heap rs_           # ResamplerTimingOffset * (heap 0x4c): deleted through its virtual destructor
+  # --- the embedded Scrambler<int, unsigned char> (+0x54) ---
+  0x54 align8 scralign_
+  0x54 ptr-to-heap scr_buf_=scr_.buf_
+  0x58 ptr-into-heap scr_head0_=scr_.head0_
+  0x5c ptr-into-heap scr_t1_0_=scr_.t1_0_
+  0x60 ptr-into-heap scr_end_=scr_.end_
+  0x64 ptr-into-heap scr_wr_=scr_.wr_
+  0x68 ptr-into-heap scr_t1_=scr_.t1_
+  0x6c ptr-into-heap scr_t2_=scr_.t2_
+  0x70 u32-ptrslot scr_tail_=scr_.tail_
+  0x74 align8 scrend_
+  0x74 ptr-into-heap q_            # Queue<float> * (heap 0x14)
+  0x78 ptr-into-heap fir_          # FloatFIR * (heap 0x14)
+  0x7c ptr-to-heap symBuf_         # heap blk_ * 2 + 0x14: the 16-bit symbols
+  0x80 ptr-to-heap fin_            # heap (blk_ + 10) * 4: the symbols as floats (the resampler input)
+  0x84 ptr-to-heap fout_           # heap arg1 * 4 + 0x28: the resampled signal (filter in place)
+  0x88 ptr-to-heap bitBuf_         # heap blk_ * 8: the scrambled bits (data phase)
+  0x8c ptr-to-heap fcarry_         # heap arg1 * 4 + 0x28: the resampler's second part (the carry between the two halves of a split block)

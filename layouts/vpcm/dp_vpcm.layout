@@ -1,0 +1,28 @@
+# Z01 layout (32-bit, measured from the blob): the per-session state of the VPCM data pump glue (vpcm_create's sysdep_malloc(0xd258)); a struct dp of slmodemd (modem_dp.h: id, modem, status, op, dp_data) followed by the
+# V.34 module object tagV34Object (test/v34/v01.layout, embedded at +0x2c) and the sample / bit staging buffers of vpcm_run.  The V.34 object is ONE unknown-region here (member v34_ is a real V01_tagV34Object in
+# src/vpcm/dp_vpcm.h: its size differs on x86-64, so this flat i386 description is used for the asserts and for member_map only; the harness dumps the object through test/v34/v01_layout.h at &state->v34_).
+# member_map-funcs: Z01State deref=0x10 = ^(vpcm_delete|vpcm_run)(\(.*\))?$
+# regenerate: tools/layout_gen.py layouts/vpcm/dp_vpcm.layout --chunk z01 --out-port src/vpcm/dp_vpcm_layout.inc --port-header vpcm/dp_vpcm.h
+class Z01State size 0xd258 cxx Z01_State mirror Z01StateObj
+  0x0000 i32 id_    # struct dp: the DP_ID (34 / 90 / 92), vpcm_create's second argument
+  0x0004 ptr-into-heap modem_    # struct dp: the modem (opaque to the glue)
+  0x0008 unknown-region unk08_ 4    # struct dp: status (never touched)
+  0x000c ptr-into-heap op_    # struct dp: the dp_operations pointer (vpcm_create's sixth argument; not read back)
+  0x0010 ptr-to-embedded dpData_    # struct dp: dp_data = the state itself (vpcm_run / vpcm_delete reach the state through it)
+  0x0014 i32 status_    # the last VPcmV34Progress result
+  0x0018 i32 link_    # the link state: 0 = training, 1 = up, -1 = error (the previous call's verdict)
+  0x001c i32 bitsWanted_    # the number of bits the next modem_get_bits is asked for (VPcmV34Progress' a7, clamped to 0x400)
+  0x0020 i32 trainCnt_    # consecutive calls with status 0 (train timeout at 3000)
+  0x0024 ptr-into-heap dspInfo_    # modem_get_param(modem, 0xb): the host struct dsp_info; vpcm_delete fills connection_type and clock_deviation from the parameter block
+  0x0028 ptr-into-heap dp_    # dp_param_get(modem): the modem parameter block (V01_ModemParams)
+  0x002c unknown-region v34_ 44108    # tagV34Object (0xac4c B)
+  0xac78 float32 inF_ 160    # the input samples as floats
+  0xaef8 float32 outF_ 160    # the V.34 object's output samples
+  0xb178 u32 bitsIn_ 1024    # modem_get_bits' bytes, expanded in place to words
+  0xc178 u32 bitsOut_ 1024    # VPcmV34Progress' bit words, compressed in place to bytes
+  0xd178 i32 txCnt_    # the number of output samples staged
+  0xd17c u16 txBuf_ 52
+  0xd1e4 i32 pendCnt_    # the number of input samples held back (the V.34 object takes multiples of 4)
+  0xd1e8 u16 pendBuf_ 52
+  0xd250 i32 silence_    # the number of output samples still to be muted (0x210 unless the quick-connect bit is set)
+  0xd254 i32 addDelay_    # the extra delay (>= 0x180) vpcm_create adds when the hardware delay is too large

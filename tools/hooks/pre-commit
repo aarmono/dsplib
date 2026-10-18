@@ -1,0 +1,23 @@
+#!/bin/sh
+# pre-commit: refuse a commit whose staged C/C++ files under src are not clang-formatted.
+# It checks the STAGED content (not the working tree) with the committed .clang-format / .clang-format-ignore, and never modifies anything.
+# Fix: tools/format.sh src && git add -u    (install: tools/install-hooks.sh; bypass once: git commit --no-verify)
+ROOT=$(git rev-parse --show-toplevel) || exit 1
+P=.
+FILES=$(git diff --cached --name-only --diff-filter=ACM -- "$P/src" | grep -E '\.(c|cpp|h|inc)$')
+[ -z "$FILES" ] && exit 0
+command -v clang-format >/dev/null 2>&1 || { echo "pre-commit: clang-format not found in PATH (use --no-verify to skip)"; exit 1; }
+T=$(mktemp -d) || exit 1
+trap 'rm -rf "$T"' EXIT
+mkdir -p "$T"
+for c in .clang-format .clang-format-ignore; do git show ":$c" >"$T/$c" 2>/dev/null || cp "$ROOT/$c" "$T/$c"; done
+echo "$FILES" | while IFS= read -r f; do
+    mkdir -p "$T/$(dirname "$f")"
+    git show ":$f" >"$T/$f"
+done
+BAD=$(cd "$T" && find src -type f | sort | xargs clang-format --dry-run -Werror 2>&1 | grep -E '^[^ ]+:[0-9]+:[0-9]+: error:' | cut -d: -f1 | sort -u)
+[ -z "$BAD" ] && exit 0
+echo "pre-commit: these staged files are not clang-formatted:"
+echo "$BAD" | cat
+echo "run: tools/format.sh src && git add -u   (or git commit --no-verify)"
+exit 1

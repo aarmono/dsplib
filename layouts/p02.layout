@@ -1,0 +1,44 @@
+# P02 class layouts (32-bit, measured from the blob: C1 ctor stores, reset, process, malloc sizes; see porting/decompiled/dp/p02_float_filters.txt)
+# regenerate: tools/layout_gen.py layouts/p02.layout --chunk p02 --out-port src/dsp/dsp_float_filters_layout.inc --port-header dsp/dsp_float_filters.h
+class FloatFIR size 0x14 cxx P02_FloatFIR mirror FirObj
+  0x00 ptr-into-heap coef_       # borrowed coefficient array (arg 2 of the ctor), never freed
+  0x04 ptr-to-heap hist_         # histLen_ floats
+  0x08 u32 taps_                 # ntaps & ~3
+  0x0c u32 histLen_              # taps_ + extra
+  0x10 i32 room_                 # write / read index, counts DOWN
+
+class FloatIIR size 0x14 cxx P02_FloatIIR mirror IirObj
+  0x00 ptr-into-heap coef_
+  0x04 ptr-to-heap hist_
+  0x08 u32 taps_
+  0x0c u32 histLen_
+  0x10 i32 room_
+
+class FloatARMA size 0x34 cxx P02_FloatARMA mirror ArmaObj
+  0x00 ptr-to-heap ar_           # nAr4_ floats: copy of the AR coefficients, divided by ar[0], [0] = 0
+  0x04 ptr-to-heap ma_           # nMa4_ floats: copy of the MA coefficients, divided by ar[0]
+  0x08 ptr-to-heap xhist_        # xlen_ floats (input history)
+  0x0c ptr-to-heap yhist_        # ylen_ floats (output history)
+  0x10 u32 nAr4_
+  0x14 u32 nMa4_
+  0x18 u32 xlen_
+  0x1c u32 ylen_
+  0x20 i32 xr_
+  0x24 i32 yr_
+  0x28 u32 idx_                  # loop counter of the blob's ctor / reset kept in a member
+  0x2c float32 y_
+  0x30 float32 w_
+
+class GenericIIR<float,double> size 0x34 cxx P02_GenericIIR mirror GiirObj
+  0x00 ptr-into-heap den_        # borrowed double arrays (ctor args 3 and 4), never freed
+  0x04 ptr-into-heap num_
+  0x08 ptr-to-heap hnum_         # lenNum_ doubles (input history)
+  0x0c ptr-to-heap hden_         # lenDen_ doubles (output history)
+  0x10 u32 nDen_
+  0x14 u32 nNum_
+  0x18 u32 lenNum_
+  0x1c u32 lenDen_
+  0x20 i32 rNum_
+  0x24 i32 rDen_
+  0x28 u32 idx_
+  0x2c double y_

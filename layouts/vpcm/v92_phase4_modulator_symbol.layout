@@ -1,0 +1,49 @@
+# P32 layout (32-bit, measured from the blob: the C1 constructor, reset, generateSymbol and `member_map.py blob --class V92Phase4Modulator --subobjects` over all 36 methods; P33 reuses this file)
+# regenerate: tools/layout_gen.py layouts/vpcm/v92_phase4_modulator_symbol.layout --chunk p32 --out-port src/vpcm/v92_phase4_modulator_layout.inc --port-header vpcm/v92_phase4_modulator.h --inc-banner chunk
+# V92Phase4Modulator: the V.92 phase-4 (TX, "u" = upstream-direction names: Ru / E1u / E2u / B1u / TRN2u / SUVu / CPu / Rm) symbol generator, 0x1cc bytes on i386, a plain class (no vptr); V92Modulator embeds it.
+# A Scrambler<uchar,uchar> is embedded at +0x4c (flattened here as scr_*).  The objects it USES (V92Parameters, V92BitsToSymbol, V92CP, V92MappingParams) are plain pointers; the V92Mapper (0x2c bytes) is allocated by the constructor.
+# Member names are descriptive (the vendor's are unknown); the states come from the debug strings ("enter E1u / E2u / B1u / FB1u / Ru / Rm", "RRN: ...", "FPE: enter SUVu", "CPu Terminated").
+class V92Phase4Modulator size 0x1cc cxx P32_V92Phase4Modulator mirror V92Ph4Obj
+  0x0000 u32 state_                # V92Phase4ModulatorState (generateSymbol dispatches on it: 0 .. 0x1d)
+  0x0004 u32 cnt_                  # symbols since the state began (incremented BEFORE the dispatch)
+  0x0008 u32 w08_                  # cleared at every SUV (re)start; read / written by generateSUVu / generateCPu
+  0x000c u32 event_                # output marker of the symbol just generated (0 none, 9 = Phase4 terminated)
+  0x0010 unknown-region pad10_ 8   # never touched
+  0x0018 u32 cpCnt_                # symbols while the repeated-CPu flag is set (state 5)
+  0x001c u8 cpFlag_                # state 5: count cpCnt_
+  0x001d unknown-region pad1d_ 3   # never touched
+  0x0020 u32 w20_                  # flags of the RRN part (written by reset, resetBeforRRN, recived*)
+  0x0024 u32 w24_                  # state 0x17: the minimum count of the TRN2u second part (0x1f44 / 0xfa0, set at the end of E2u)
+  0x0028 u32 w28_                  # state 0xf (E2u) end: with w30_ != 0 and w34_ == 0 -> TRN2u second part at RRN
+  0x002c u32 w2c_=rrnSilence_                  # the SUV value handed to V92CP::setSUV
+  0x0030 u32 w30_
+  0x0034 u32 w34_
+  0x0038 u32 w38_                  # selects the length of the TRN2u second part (0x1f44 if zero, else 0xfa0)
+  0x003c u32 w3c_                  # FPE flag: nonzero = the E2u / B1u data come from the BitsToSymbol queue (state 0xf -> FB1u 0x11)
+  0x0040 u16 level_                # reset arg 1 (short): the Ru / RuNot amplitude
+  0x0042 u8 b42_                   # reset arg 2 (u8)
+  0x0043 u8 mult_                  # reset arg 2 + 2: scrambled bits per symbol group (the V92Mapper input length; the CP's +0x128)
+  0x0044 u32 limit_                # reset arg 5: state 5 stops counting at limit_ + 0x320
+  0x0048 ptr-into-heap mp_         # V92MappingParams * (constructor arg 4)
+  0x004c ptr-to-heap scr_buf_=scr_.buf_
+  0x0050 ptr-into-heap scr_head0_=scr_.head0_
+  0x0054 ptr-into-heap scr_t1_0_=scr_.t1_0_
+  0x0058 ptr-into-heap scr_end_=scr_.end_
+  0x005c ptr-into-heap scr_wr_=scr_.wr_
+  0x0060 ptr-into-heap scr_t1_=scr_.t1_
+  0x0064 ptr-into-heap scr_t2_=scr_.t2_
+  0x0068 u32-ptrslot scr_tail_=scr_.tail_
+  0x006c ptr-into-heap b2s_        # V92BitsToSymbol * (constructor arg 2)
+  0x0070 ptr-into-heap mapper_     # V92Mapper * (allocated by the constructor, sysdep_malloc(0x2c))
+  0x0074 ptr-into-heap cp_         # V92CP * (constructor arg 3)
+  0x0078 u32 inv_                  # the differential-encoder bit of the scrambled stream (XORed in 32 bits)
+  0x007c u8 bits_ 300              # the scrambled bit buffer (the last byte bits_[mult_ - 1] is XORed with inv_)
+  0x01a8 ptr-into-heap cpBits_     # V92CP::getBitVector(cpLen_)
+  0x01ac u32 cpLen_                # its length
+  0x01b0 u32 cpFrame_              # symbols per CP frame: cpLen_ / mult_
+  0x01b4 unknown-region pad1b4_ 4  # never touched
+  0x01b8 u32 w1b8_                 # the end count of the E1u / E2u states (0xc, or 0xd after a SUVu with w1bc_ != 0)
+  0x01bc u32 w1bc_=extendEu_
+  0x01c0 u32 w1c0_
+  0x01c4 u32 w1c4_
+  0x01c8 ptr-into-heap params_     # constructor arg 1 (V92Parameters *): stored

@@ -1,0 +1,11 @@
+# P13 layout (32-bit, measured from the blob; see porting/decompiled/dp/p13_p15_dil_jd_modulus.txt)
+# regenerate: tools/layout_gen.py layouts/vpcm/pcm_dil.layout --chunk p13 --out-port src/vpcm/pcm_dil_layout.inc --port-header vpcm/pcm_dil.h --inc-banner chunk
+# tagV90DILdescriptor: embedded in VPcmFloModem at +4 (the frame buffer of the owner starts at +0x21e); filled by setDilDescriptor from the .data tables, read by calculateDilLength and the packers.
+class tagV90DILdescriptor size 0x213 cxx P13_DIL mirror DilDesc
+  0x00 u8 N_
+  0x01 u8 Lsp_
+  0x02 u8 Ltp_
+  0x03 u8 sp_ 128
+  0x83 u8 tp_ 128
+  0x103 u8 hr_ 16
+  0x113 u8 to_ 256

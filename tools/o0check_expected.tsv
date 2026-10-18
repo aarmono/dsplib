@@ -1,0 +1,6 @@
+# tools/o0check.py --expected: differences the checker accepts, with a reason.  Columns (TAB-separated): width  kind  tu  name  reason
+#   width  m64 (or m32o2 / m64o2 for the -O2 modes).  m32 is NOT allowed: the -m32 -O0 criterion has no exceptions.
+#   kind   func | data | import | layout
+#   tu     object basename without .o (work side), glob allowed
+#   name   mangled function / section / symbol / type name, glob allowed
+# An entry that is not observed is reported, not an error.  Empty: no accepted differences yet.

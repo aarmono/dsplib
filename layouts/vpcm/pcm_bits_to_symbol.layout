@@ -1,0 +1,42 @@
+# P29 layouts (32-bit, measured from the blob: C1 ctors, reset, process, nofBitsForNextTime, setSymbolsBlockSize; see porting/decompiled/dp/p29_transmitter_bits2symbol.txt)
+# regenerate: tools/layout_gen.py layouts/vpcm/pcm_bits_to_symbol.layout --chunk p29 --out-port src/vpcm/pcm_bits_to_symbol_layout.inc --port-header vpcm/pcm_bits_to_symbol.h --inc-banner chunk
+# The objects the three classes own (V90Mapper, V92Transmitter, V92ModulusEncoder / V92Precoder / V92PreFilter / V92ConvolutionEncoder) are plain (normalised) pointers on purpose: they are
+# heap OBJECTS of earlier chunks whose blocks hold raw pointers on x86-64; the harness never dumps them as bytes.
+# V92Transmitter: a heap object (sysdep_malloc(0x60) by V92BitsToSymbol's constructor; the constructor allocates five more blocks).  0x5c bytes of members + 4 never-touched bytes.
+class V92Transmitter size 0x60 cxx P29_V92Transmitter mirror TxObj
+  0x00 unknown-region unk0_ 4    # never touched
+  0x04 u32 w0_                   # reset: V92MappingParams::w0_ = the data bits per symbol group (process() collects this many bits)
+  0x08 ptr-to-heap buf_          # heap 0x50 bytes: the collected data bits (one per byte)
+  0x0c u32 fill_                 # bits in buf_ (the constructor stores 0 after the buf_ block is allocated, reset 0)
+  0x10 u32 digits_ 12            # V92ModulusEncoder::progress output: the twelve mixed-radix digits of one group (also the input of V92Precoder::process)
+  0x40 i32 par_                  # the last V92ConvolutionEncoder::process result (the precoder's `par` argument); reset 0
+  0x44 float32 gain_             # reset: V92MappingParams::gain_ (the output scale of process)
+  0x48 ptr-into-heap me_         # V92ModulusEncoder * (heap 0x54)
+  0x4c ptr-into-heap pre_        # V92Precoder * (heap 0x80, ctor(0x140))
+  0x50 ptr-into-heap pf_         # V92PreFilter * (heap 0x14, ctor(0x140))
+  0x54 ptr-into-heap ce_         # V92ConvolutionEncoder * (heap 0x2008)
+  0x58 ptr-to-heap flag_         # heap 1 byte: set to 0 by the constructor and by reset, never read
+  0x5c unknown-region pad5c_ 4   # never touched
+# V90BitsToSymbol: embedded in V90Modulator / V90Phase4Modulator (0x24 bytes).
+class V90BitsToSymbol size 0x24 cxx P29_V90BitsToSymbol mirror B2S90
+  0x00 ptr-into-heap mapper_     # V90Mapper * (heap 0x704, constructed with params_)
+  0x04 ptr-into-heap params_     # constructor arg 2 (V90Parameters *): stored, passed to the Mapper
+  0x08 ptr-to-heap buf_          # heap 2 * cap_ bytes: the symbol queue (shorts)
+  0x0c u32 cap_                  # constructor arg 1: the queue capacity in symbols
+  0x10 u32 fill_                 # symbols in buf_
+  0x14 u32 w0_                   # reset / resetNoSpectral: V90MappingParams::w0_ (bits of a frame of six symbols)
+  0x18 u32 extra_                # reset: 6 * depth / K (the symbols the shaper delays at the start; 0 when K == 0), added to the symbol count while first_ != 0
+  0x1c u32 blk_                  # setSymbolsBlockSize: the symbols per output block (0 = not set)
+  0x20 u8 first_                 # 1 after the constructor and reset, cleared by process; selects the extra_ term of the bit count
+  0x21 unknown-region pad21_ 3   # padding
+# V92BitsToSymbol: embedded in V92Modulator / V92Phase4Modulator (0x20 bytes).
+class V92BitsToSymbol size 0x20 cxx P29_V92BitsToSymbol mirror B2S92
+  0x00 ptr-into-heap tx_         # V92Transmitter * (heap 0x60)
+  0x04 ptr-into-heap params_     # constructor arg 2 (V92Parameters *): stored, never used
+  0x08 ptr-to-heap buf_          # heap 2 * cap_ bytes: the symbol queue (shorts)
+  0x0c u32 cap_                  # constructor arg 1
+  0x10 u32 fill_                 # symbols in buf_
+  0x14 u32 w0_                   # reset: V92MappingParams::w0_ (bits of a group of twelve symbols)
+  0x18 u32 blk_                  # setSymbolsBlockSize
+  0x1c u8 first_                 # 1 after the constructor and reset, cleared by process (no reader in V92BitsToSymbol)
+  0x1d unknown-region pad1d_ 3   # padding

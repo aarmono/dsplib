@@ -1,0 +1,31 @@
+# P24 layout of class V90ConstellationDesigner (32-bit, measured from the blob; derived for ALL 24 methods with `tools/member_map.py blob --class V90ConstellationDesigner --subobjects --callers --size 0x54`,
+# see porting/decompiled/dp/p24_constellation_designer_b.txt).  Heap block of V90Demodulator (sysdep_malloc(0x54), V90Demodulator at +0x208 holds the pointer).  Plain class (no vptr, trivial ctor / dtor).
+# regenerate: tools/layout_gen.py layouts/vpcm/v90_constellation_noise.layout --chunk p24 --out-port src/vpcm/v90_constellation_designer_layout.inc --port-header vpcm/v90_constellation_designer.h --inc-banner chunk
+# Names are descriptive (the P23 / P25 rows may rename members that only their functions touch).  Unknown regions = bytes no method of the class touches.
+class V90ConstellationDesigner size 0x54 cxx P24_V90ConstellationDesigner mirror CdObj
+  0x00 ptr-into-heap params_            # V90Parameters * (borrowed; ctor arg 1)
+  0x04 ptr-into-heap mapParams_         # V90MappingParams * (borrowed; stored by process; the constellation block this class fills: lists at +4 / +0x304, counts at +0x604, +0x620)
+  0x08 u8 flag8_                        # ctor 0; process writes (uint8)(42 - D) (+1 when > 4; D = mapParams_->w0_); adjustConstellationsPower reads it (> 13: remove 1 point per round).  P25: a name like dGap_ would fit, kept (the goldens dump member names)
+  0x09 unknown-region unk09_ 1
+  0x0a u16 dMin_                        # int16: the current minimum distance
+  0x0c u16 rrnDownDmin_                 # int16 (reset: 0)
+  0x0e u16 rrnUpDmin_                   # int16 (reset: 0)
+  0x10 u16 dMinAlt_                     # int16: trunc(1.25 * dMin) (the "dual" variant of the ucode selection)
+  0x12 unknown-region unk12_ 2
+  0x14 ptr-into-heap adid_              # V90AutoDigitalImpDetector * (process arg 2; stored by process: constelBuild / determineDminForRrn read a short table at +0 and a byte table at +0xd00 through it)
+  0x18 float32 threshUp_                # pdSnrThreshForRateUp
+  0x1c float32 threshDown_              # pdSnrThreshForRateDown
+  0x20 float32 threshRetrain_           # pdSnrThreshForRetrain
+  0x24 u32 w24_                         # reset: params->unk39c; process: `if (w24_ == 0) w24_ = rate` (the first chosen rate); setConstellationToNoise tests it for 0 (NoRestriction state); V90Demodulator::progress reads it.  P25: firstRate_ would fit, kept
+  0x28 u32 w28_                         # process writes (= adid_->pcmType_, +0xa95c); setConstellationToNoise compares it with useAlaw_.  P25: adidPcmType_ would fit, kept
+  0x2c u32 useAlaw_                     # (process: = adid_->0xa960) 0 = u-law (linear2ulaw, not), else A-law (linear2alaw, xor 0xd5)
+  0x30 ptr-into-heap power_             # V90ConstellationPower * (ctor arg 3)
+  0x34 unknown-region unk34_ 4
+  0x38 u8 w38_=powerLimit_                          # ctor 0x16 (= 22, the last index of averagePowerLimits); process writes its uchar argument; adjustConstellationsPower uses min(w38_, 22) as the limit power index.  P25: powerIndexLimit_ would fit, kept
+  0x39 unknown-region unk39_ 3
+  0x3c u32 w3c_=codec_                         # process writes its __tHardwareCodecTypes__ argument (P25: hwCodecType_ would fit); never read
+  0x40 u32 w40_                         # process writes its 13th argument (unsigned; V90Demodulator::progress passes V90ConnectionEvaluator+0x94); never read
+  0x44 ptr-into-heap preFilter_         # V90PreFilter * (ctor arg 2)
+  0x48 u32 state_                       # setConstellationToNoise state machine: 0 NoRestriction, 1 KeepRate, 2 OneRateUp, 3 OneRateDown, other = first call; reset 0
+  0x4c u32 maxRate_                     # ctor 0xdac0 = 56000
+  0x50 u32 minRate_                     # ctor 0x6d60 = 28000

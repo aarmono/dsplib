@@ -1,0 +1,31 @@
+# P09 class layout (32-bit, measured from the blob: ctor / reset / evaluateInfo / infoToBits / bitsToInfo / evaluateCRC; see porting/decompiled/dp/p09_p10_v90mp_v90cp.txt)
+# regenerate: tools/layout_gen.py layouts/vpcm/v90_mp.layout --chunk p09 --out-port src/vpcm/v90_mp_layout.inc --port-header vpcm/v90_mp.h --inc-banner chunk
+# V90Modem embeds V90MP at +0xcd0 and V90CP at +0xdf4: sizeof = 0x124.  No member of this class is a pointer.
+class V90MP size 0x124 cxx P09_V90MP mirror MpObj
+  0x00 u8 type_
+  0x01 u8 rate_
+  0x02 u8 trellis_
+  0x03 u8 nonLin_
+  0x04 u8 shaping_
+  0x05 u8 cPack_
+  0x06 u16 rateMask_
+  0x08 u16 h1Re_                 # short
+  0x0a u16 h1Im_
+  0x0c u16 h2Re_
+  0x0e u16 h2Im_
+  0x10 u16 h3Re_
+  0x12 u16 h3Im_
+  0x14 u32 state_
+  0x18 u8 frameType_
+  0x19 u8 ones_
+  0x1a u8 zeros_
+  0x1b u8 widx_
+  0x1c u8 bits_ 230              # 0xe6 bytes: 0x1c .. 0x101 (the CRC register follows)
+  0x102 u8 crc_ 16
+  0x112 unknown-region unk112_ 2 # never touched
+  0x114 u32 trn2dD_
+  0x118 u8 totalLen_
+  0x119 u8 frameLen_
+  0x11a unknown-region unk11a_ 2 # never touched
+  0x11c u32 nMp_
+  0x120 u32 nMpNot_

@@ -1,0 +1,11 @@
+# P15 layout (32-bit, measured from the blob; see porting/decompiled/dp/p13_p15_dil_jd_modulus.txt)
+# regenerate: tools/layout_gen.py layouts/vpcm/v92_modulus_encoder.layout --chunk p15 --out-port src/vpcm/v92_modulus_encoder_layout.inc --port-header vpcm/v92_modulus_encoder.h --inc-banner chunk
+# V92ModulusEncoder: embedded in V92Transmitter (0x54 bytes)
+class V92ModulusEncoder size 0x54 cxx P15_V92ModulusEncoder mirror V92ModEncObj
+  0x00 u32 prod_ 2
+  0x08 u32 a_ 2
+  0x10 u32 b_ 2
+  0x18 u32 m_ 12
+  0x48 u32 nbits_
+  0x4c u32 flag_
+  0x50 u32 mode_

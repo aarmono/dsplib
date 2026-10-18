@@ -1,0 +1,23 @@
+# P44 layout of the diagnostics record TAG_DiagnosticResults (32-bit, measured from the blob: the only method that fills it here is V90Demodulator::getAT_UD, a DEAD function).
+# Only the words getAT_UD writes are known (the record is larger: its owner VPcmV34GetDiagnostics is not ported); size 0x224 = the end of the last word written.
+# regenerate: tools/layout_gen.py layouts/vpcm/v90_demodulator.layout --chunk p44 --out-port src/vpcm/v90_diagnostics_layout.inc --port-header vpcm/v90_diagnostics.h --inc-banner chunk
+class TAG_DiagnosticResults size 0x224 cxx P44_TAG_DiagnosticResults mirror DiagObj
+  0x00 unknown-region unk00_ 104
+  0x68 float32 powerDb_   # 10 * log10(V90Demodulator::agc_.power_)
+  0x6c unknown-region unk6c_ 4
+  0x70 float32 meanErrDb_   # 10 * log10(V90Equalizer::meanErr_)
+  0x74 u32 meanErrWord_   # the raw word of V90Equalizer::meanErr_
+  0x78 unknown-region unk78_ 12
+  0x84 u32 rtdUnits_   # (10 * V90Phase2Info::rtd_) / 96 (mul 0xaaaaaaab; shr 6)
+  0x88 unknown-region unk88_ 44
+  0xb4 u32 symbolRate_   # 8000
+  0xb8 unknown-region unkb8_ 4
+  0xbc u32 zeroBc_   # 0
+  0xc0 unknown-region unkc0_ 44
+  0xec u32 cnt23_   # V90Demodulator::cnt23_
+  0xf0 u32 cnt1f_   # V90Demodulator::cnt1f_
+  0xf4 u32 cnt26_   # V90Demodulator::cnt26_
+  0xf8 unknown-region unkf8_ 4
+  0xfc u32 bitRate_   # getBitRate() without the const: designed_ ? trunc(0.5 + (mp2->w0 * 8000) / 6) : 0
+  0x100 unknown-region unk100_ 288
+  0x220 u32 rbs_   # the six suspected RBS phase bits packed (Horner base 2, bit 0 of the pattern most significant)

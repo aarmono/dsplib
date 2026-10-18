@@ -1,0 +1,113 @@
+# P46 layout (32-bit, measured from the blob): VPcmFloModem, 0x7f68 bytes (VPCMXF_Create: sysdep_malloc(0x7f68) + VPcmFloModem::VPcmFloModem).  P46 = v90RunDemodulator + runPcmModem; the constructor / destructor and the
+# other 26 methods are P47's.  KNOWN here = every member those two functions touch (named, with the access widths of the disassembly; `member_map.py blob --class VPcmFloModem --func 'v90RunDemodulator|runPcmModem'`) and every
+# member the constructor stores (the C1 stores the P47 fills in, porting/decompiled/dp/p46_vpcmflo_a.txt).  UNKNOWN (named unknown regions, for P47 to fill): the TX / RX frame buffers, the ANSam detector / sine generator
+# block, the CP frame buffer, the 0x7dd8 .. 0x7f5b tail (GenericIIR<float,double> at 0x7f28 ...).  The embedded sub-objects reuse the P45 / P22 layouts at their offsets: V90Modem at +0x1758 (0x49c0), V92Modem at +0x6124
+# (0xaac), V92EchoCanceller at +0x6bd0 (0x3c), tagV90DILdescriptor at +4 (0x213).  Their members are FLATTENED (`name=sub.member`), pointer-holding sub-objects between `align8` markers (x86-64 pads them to pointer
+# alignment: P45 / P28 convention).  ALL pointers are `ptr-into-heap` (normalised by the dump, never dumped through).
+# RS1 / M1 (2026-10-06): the port's own P46 header (dsp_classes_p46.h + dsp_layout_p46.inc, deleted in RS1) is gone; src/vpcm/vpcm_flo_modem_run.cpp compiles against the ONE definition, src/vpcm/vpcm_flo_modem.h.  This
+# file stays the P46 harness' mirror (PcmFloObj, member names unchanged, so the dumps / goldens are unchanged): the probe now checks it against P47_VPcmFloModem (`mirror=port` aliases for the six
+# members P47 renamed and for unk7dd8_ = uinfoA_), and two pad64 markers make the x86-64 mirror follow P47's x86-64 layout (the ANSam / GenericIIR pointers inside ansam_ / iir_).  i386: unchanged.
+# regenerate: tools/layout_gen.py layouts/vpcm/vpcm_flo_modem_run.layout --chunk p46 --port-header vpcm/vpcm_flo_modem.h
+class VPcmFloModem size 0x7f68 cxx P47_VPcmFloModem mirror PcmFloObj
+  0x0000 ptr-into-heap ctx_              # the V.34 module context (C1 arg 1, borrowed): the first argument of every VPcmV34* / V34XF_* call
+  0x0004 unknown-region dil_ 0x213       # tagV90DILdescriptor (P13), handed to the V90Modem / V92Modem constructors; not touched by P46
+  0x0217 u8 v34Flags_ 6                  # "drop to V34" sets 1,0,1,1,1,1 (state 0x1f of the demodulator)
+  0x021d u8 pad21d_
+  0x021e unknown-region cpnotFrame_ 0x1518   # V90CPPacker output (CP / CPnot on MP receive: `short *`); P46 only passes its address
+  0x1736 u16 cpnotLen_                   # V90CPPacker result (low 16 bits) of the CPnot built on MP / MPnot receive
+  0x1738 u16 w1738_=bitPtr_                   # cleared by the CP / CPt / CPnot-complete states
+  0x173a u8 trainConstel_                # V90Jd / V92Jd::getConstelationSize first output
+  0x173b u8 rrnConstel_                  # second output (0 = 4 points / 1 = 16 points)
+  0x173c u8 localRrn_                    # set by the rate-renegotiation request, cleared by the next one
+  0x173d u8 dropToV34_                   # set by the "drop to V34 requested" states
+  0x173e u8 clearDown_                   # the CP "clr" bit / the cleardown request
+  0x173f u8 pad173f_
+  0x1740 u32 w1740_=constelCtr_                   # stored by the constructor, not touched by P46
+  0x1744 u8 mpB_ 6                       # the MP information copy (V90MP type_ .. cPack_ bytes) the V.34 module reads at ctx+0x1744 .. 0x1757 (getMPrecvdBits)
+  0x174a u16 mpRate2_                    # 2 * (short)V90MP::rateMask_
+  0x174c u16 mpH_ 6                      # V90MP::h1Re_ .. h3Im_
+  # ---- V90Modem at +0x1758 (P45 layout test/vpcm/pcm_modem.layout) ----
+  0x1758 ptr-into-heap v90Mod_=v90_.mod_
+  0x175c ptr-into-heap v90Dem_=v90_.dem_
+  0x1760 ptr-into-heap v90Info_=v90_.info_
+  0x1764 ptr-into-heap v90Jd_=v90_.jd_
+  0x1768 ptr-into-heap v90Jd92_=v90_.jd92_
+  0x176c ptr-into-heap v90Dil_=v90_.dil_
+  0x1770 unknown-region v90Mp1_=v90_.mp1_ 0x650      # V90MappingParams (the TRN2d parameters; V90CPPacker / setV92CPpckFromParamsInfo argument 0)
+  0x1dc0 unknown-region v90Mp2_=v90_.mp2_ 0x650
+  0x2410 u32 addCp0_=v90_.addCp_.flag_     # tagV90AdditionalCPinfo: word 0 = 1 for a CPnot, 0 for a CP / CPt
+  0x2414 unknown-region addCp4_=v90_.addCp_.mode_ 0xc
+  0x2420 u32 addCp10_=v90_.addCp_.suvVal_   # cleared by the "CP after silence RRN" state
+  0x2424 u32 addCp14_=v90_.addCp_.w14_
+  0x2428 u8 mpType_=v90_.mp_.type_ 6     # V90MP type_ rate_ trellis_ nonLin_ shaping_ cPack_
+  0x242e u16 mpRate_=v90_.mp_.rateMask_
+  0x2430 u16 mpH1_=v90_.mp_.h1Re_ 6
+  0x243c unknown-region mpRest_=v90_.mp_.state_ 0x110
+  0x254c align8 cpalign_
+  0x254c unknown-region cpA_=v90_.cp_.type_ 0x12
+  0x255e u8 cpF12_=v90_.cp_.extendEu_         # V90CP::extendEu_ (read by the state 0x2d "CP received")
+  0x255f unknown-region cpB_=v90_.cp_.cptFlag_ 0xc75
+  0x31d4 ptr-into-heap cpHeap_=v90_.cp_.heap_ 6
+  0x31ec unknown-region cpTail_=v90_.cp_.wCa0_ 0x2f20
+  0x610c align8 cpend_
+  0x610c ptr-into-heap v90Params_=v90_.params_
+  0x6110 u32 v90Session_=v90_.session_
+  0x6114 u32 v90Side_=v90_.side_
+  0x6118 align8 v90end_
+  # ---- the state of the PCM modem ----
+  0x6118 u8 state_                       # 0 / 1 idle (V.90 side: nothing yet), 2 phase 4 / data, 3 data steady state, 4 ...: see the archaeology; v90RunDemodulator / runPcmModem return values follow it
+  0x6119 u8 flag6119_                    # set by "enter data phase" and the exit of the CP; selects the SAS-detector restore
+  0x611a unknown-region pad611a_ 2
+  0x611c u32 w611c_=v92Session_                   # stored by the constructor
+  0x6120 u32 flag6120_                   # nonzero: the V.92 echo canceller / modulator are active (set by P47's methods)
+  # ---- V92Modem at +0x6124 (P45 layout) ----
+  0x6124 align8 v92align_
+  0x6124 ptr-into-heap v92Mod_=v92_.mod_
+  0x6128 ptr-into-heap v92Params_=v92_.params_
+  0x612c ptr-into-heap v92Info_=v92_.info_
+  0x6130 u32 v92JaLen_=v92_.ja_.len_
+  0x6134 unknown-region v92JaBits_=v92_.ja_.bits_ 0xa8c
+  0x6bc0 ptr-into-heap v92Dil_=v92_.dil_
+  0x6bc4 ptr-into-heap v92Map_=v92_.mapping_
+  0x6bc8 ptr-into-heap v92Cp_=v92_.cp_
+  0x6bcc u32 v92Side_=v92_.side_
+  0x6bd0 align8 v92end_
+  # ---- V92EchoCanceller at +0x6bd0 (P22 layout test/vpcm/v92_echo_canceller.layout, flattened; the methods are called only through the recorders) ----
+  0x6bd0 align8 ecalign_
+  0x6bd0 ptr-into-heap ecParams_=ec_.params_
+  0x6bd4 ptr-into-heap ecArma_=ec_.arma_
+  0x6bd8 i32 ecState_=ec_.state_
+  0x6bdc u32 ecLimit_=ec_.limit_
+  0x6be0 u32 ecCount_=ec_.count_
+  0x6be4 u32 ecNCoef_=ec_.nCoef_
+  0x6be8 u32 ecNCoefM1_=ec_.nCoefM1_
+  0x6bec u32 ecHistLen_=ec_.histLen_
+  0x6bf0 ptr-into-heap ecCoef_=ec_.coef_
+  0x6bf4 ptr-into-heap ecHist_=ec_.hist_
+  0x6bf8 u32 ecPos_=ec_.pos_
+  0x6bfc u32 ecHistFill_=ec_.histFill_
+  0x6c00 float32 ecBeta_=ec_.beta_
+  0x6c04 float32 ecDecay_=ec_.decay_
+  0x6c08 u32 ecDelay_=ec_.delay_
+  0x6c0c align8 ecend_
+  # ---- the rest ----
+  0x6c0c float32 ecOut_ 212              # the echo-cancelled samples (runPcmModem: the V90Modem's input block, n <= 212; element 0 is overwritten before every block); 0x6c0c .. 0x6f5b
+  0x6f5c unknown-region ansam_ 0x60      # ANSamToneDetector (0x6f5c, 0x40 B) + SineWave<float,float> (0x6f9c, 0x20 B): constructed by P47's constructor
+  0x6fbc pad64 pad64_6fbc_ 4             # RS1 / M1: x86-64 only: the ANSamToneDetector's heap pointer iir_ (+4) of the P47 class
+  0x6fbc unknown-region cpFrame_ 0xe10   # V90CPPacker output (CP / CPt: `short *`): 0x6fbc .. 0x7dcb
+  0x7dcc u16 cpLen_                      # V90CPPacker result (low 16 bits) of the CP / CPt built
+  0x7dce u8 jaFlag_                      # "Ja Flag set to 1" (DemodSdDetected)
+  0x7dcf u8 cpFlag_                      # "CP Flag set to 1"
+  0x7dd0 u8 cpnotFlag_                   # "CPnot Flag set to 1"
+  0x7dd1 u8 b7dd1_=cpnotCopied_                    # stored by the constructor / P47's methods; read by the state 0x1b
+  0x7dd2 u8 nofBitsPhase4_               # 2 if the training constellation is 4 points else 4 ("nof bits each call")
+  0x7dd3 u8 pad7dd3_
+  0x7dd4 u16 w7dd4_=cpSeqCnt_
+  0x7dd6 u16 w7dd6_=minTxSeq_
+  0x7dd8 unknown-region unk7dd8_=uinfoA_ 0x150   # 0x7dd8 .. 0x7f27 (not touched by P46)
+  0x7f28 unknown-region iir_ 0x34        # GenericIIR<float,double> (0x7f28, constructed by P47's constructor)
+  0x7f5c pad64 pad64_7f5c_ 20            # RS1 / M1: x86-64 only: the GenericIIR's 4 pointers (+16) and the double y_ (+4 alignment) of the P47 class
+  0x7f5c u8 b7f5c_=entranceFilter_                       # stored by the constructor
+  0x7f5d unknown-region pad7f5d_ 3
+  0x7f60 u32 echoMode_                   # 0x21 = "echo silence" (runPcmModem injects the counter into ecOut_[0]), else 1 / 0
+  0x7f64 u32 echoCnt_                    # 0xaa .. 0xb1: the injected counter

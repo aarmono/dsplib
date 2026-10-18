@@ -1,0 +1,54 @@
+# P30 layout (32-bit, measured from the blob: the C1 constructor, reset, generateV90Symbol / generateV92Symbol and `member_map.py blob --class V90Phase4Modulator --subobjects` over all 45 methods; P31 reuses this file)
+# regenerate: tools/layout_gen.py layouts/vpcm/v90_phase4_modulator_symbol.layout --chunk p30 --out-port src/vpcm/v90_phase4_modulator_layout.inc --port-header vpcm/v90_phase4_modulator.h --inc-banner chunk
+# V90Phase4Modulator: the V.90 phase-4 (TX) symbol generator, 0x2fac bytes on i386, a plain class (no vptr); V90Modulator embeds it.  A Scrambler<uchar,uchar> is embedded at +0x58 (flattened here as scr_*; its history block is a heap block).
+# The objects it USES (V90BitsToSymbol, V90MP, two V90MappingParams, V90CP, V90Parameters) are plain pointers; the constructor allocates the V90BitsToSymbol itself when none is passed (the owner flag at +0x2fa4).
+# Member names are descriptive (the vendor's are unknown); the states come from the debug strings ("enter RiNot", "enter TRN2d", "enter MP", "enter Ed", "enter B1d", "Phase4 Terminated", the V.92 SUVd / CPd family).
+class V90Phase4Modulator size 0x2fac cxx P30_V90Phase4Modulator mirror Ph4Obj
+  0x0000 u32 flag_                 # C1 arg 2 / setSessionFlag: nonzero = V.92 session (generateSymbol calls generateV92Symbol)
+  0x0004 u32 state_                # Phase4ModulatorState
+  0x0008 u32 cnt_                  # symbols since the state began (incremented BEFORE the dispatch)
+  0x000c u32 event_                # output marker of the symbol just generated (0 none, 4 = TRN2d ended in V.92, 7 = Phase4 terminated)
+  0x0010 u32 nextState_            # reset: flag_ == 0 ? 4 : 5; V.90: the state entered after TRN2d (4 = "MP", else "DIRECTLY to MPNot"); setNextStateAfterTRN2d
+  0x0014 u8 mpNotSeen_             # V.90 state 0xe: set by recivedCP-family, cleared by generateV90Symbol
+  0x0015 unknown-region pad15_ 3   # never touched
+  0x0018 u32 cpCnt_                # V.92: symbols while the repeated-CPd flag is set (state 5)
+  0x001c u8 cpFlag_                # V.92 state 5: count cpCnt_
+  0x001d unknown-region pad1d_ 3   # never touched
+  0x0020 u32 w20_                  # V.92 flags / counters of the RRN part (written by reset, resetBeforRRN, recived*)
+  0x0024 u32 w24_
+  0x0028 u32 w28_                  # copied to the CP's word at +0xca0 when a CP / SUVd starts
+  0x002c u32 w2c_
+  0x0030 u32 w30_
+  0x0034 u32 w34_                  # V.92 state 0x10: silence goes to state 0x18 when zero, else 0x17
+  0x0038 u32 pcm_                  # reset arg 1 (PcmType): handed to resetNoSpectral
+  0x003c u16 level_                # linear value of reset arg 2 (a G.711 code, sign dropped): the Ri / RiNot amplitude
+  0x003e unknown-region pad3e_ 2   # never touched
+  0x0040 u32 limit_                # reset arg 5: V.92 state 5 stops counting at limit_ + 0x320
+  0x0044 ptr-into-heap b2s_          # V90BitsToSymbol * (passed to the constructor or allocated by it, 0x24 bytes)
+  0x0048 ptr-into-heap mp_           # V90MP *
+  0x004c ptr-into-heap dataMp_       # V90MappingParams * (the data-phase parameters: B1d)
+  0x0050 ptr-into-heap trn2dMp_      # V90MappingParams * (the TRN2d parameters)
+  0x0054 ptr-into-heap cp_           # V90CP *
+  0x0058 ptr-to-heap scr_buf_=scr_.buf_
+  0x005c ptr-into-heap scr_head0_=scr_.head0_
+  0x0060 ptr-into-heap scr_t1_0_=scr_.t1_0_
+  0x0064 ptr-into-heap scr_end_=scr_.end_
+  0x0068 ptr-into-heap scr_wr_=scr_.wr_
+  0x006c ptr-into-heap scr_t1_=scr_.t1_
+  0x0070 ptr-into-heap scr_t2_=scr_.t2_
+  0x0074 u32-ptrslot scr_tail_=scr_.tail_
+  0x0078 u8 bits_ 12000            # scrambled bit buffer (0x2ee0 bytes)
+  0x2f58 ptr-into-heap mpBits_     # V90MP::getBitVector(mpLen_)
+  0x2f5c u32 mpLen_                # its length
+  0x2f60 u32 mpFrame_              # symbols per MP frame: 6 * mpLen_ / V90MP::trn2dD_
+  0x2f64 u32 target_               # the symbol count that ends the running state (Ed: b2s_->extra_ + 12)
+  0x2f68 u16 rdrt_ 6               # setRdRtSymbols: the six-symbol Rd / Rt pattern
+  0x2f74 u16 rf_ 12                # setRfSymbols: the twelve-symbol Rf pattern
+  0x2f8c ptr-into-heap cpBits_     # V90CP::getBitVector(cpLen_)
+  0x2f90 u32 cpLen_                # its length
+  0x2f94 u32 cpFrame_              # symbols per CP frame: 6 * cpLen_ / V90CP::trn2dD_
+  0x2f98 u32 arg8_                 # C1 arg 8 (stored, never read)
+  0x2f9c u32 w2f9c_
+  0x2fa0 u32 w2fa0_
+  0x2fa4 u32 notOwned_             # 1 = the V90BitsToSymbol was passed in, 0 = the constructor allocated it (the destructor frees it)
+  0x2fa8 ptr-into-heap params_     # C1 arg 1 (V90Parameters *): stored, never read
